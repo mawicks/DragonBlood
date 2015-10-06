@@ -14,10 +14,10 @@ func NewDataFrame() *DataFrame {
 		true}
 }
 
-func (nf *DataFrame) AddFeature(name string, featureFactory FeatureFactory) {
+func (nf *DataFrame) AddFeature(feature Feature) {
 	if nf.empty {
-		nf.columnMap[name] = len(nf.feature)
-		nf.feature = append(nf.feature, featureFactory.New(name))
+		nf.columnMap[feature.Name()] = len(nf.feature)
+		nf.feature = append(nf.feature, feature)
 	} else {
 		panic("Attempt to add an empty column to a non-empty dataframe")
 	}

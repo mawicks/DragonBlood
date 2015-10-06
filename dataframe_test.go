@@ -20,7 +20,7 @@ func TestDataFrame(t *testing.T) {
 
 	nf := db.NewDataFrame()
 	for i := 0; i < 4; i++ {
-		nf.AddFeature(names[i], db.NewNumericFeatureFactory())
+		nf.AddFeature(db.NewNumericFeature(names[i]))
 	}
 
 	if nf.Length() != 0 {
