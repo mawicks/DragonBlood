@@ -5,60 +5,63 @@ import "fmt"
 type DataFrame struct {
 	feature   []Feature
 	columnMap map[string]int
-	empty     bool
+	length    int
 }
 
 func NewDataFrame() *DataFrame {
 	return &DataFrame{make([]Feature, 0),
 		make(map[string]int),
-		true}
-}
-
-func (nf *DataFrame) AddFeature(feature Feature) {
-	if nf.empty {
-		nf.columnMap[feature.Name()] = len(nf.feature)
-		nf.feature = append(nf.feature, feature)
-	} else {
-		panic("Attempt to add an empty column to a non-empty dataframe")
+		0,
 	}
 }
 
-func (nf *DataFrame) AddRow(row []interface{}) {
-	if len(nf.feature) == len(row) {
-		nf.empty = false
-		for i, value := range row {
-			nf.feature[i].Add(value)
+func (df *DataFrame) AddFeature(feature Feature) {
+	featureLength := feature.Length()
+	if df.length == 0 || featureLength == df.length {
+		df.columnMap[feature.Name()] = len(df.feature)
+		df.feature = append(df.feature, feature)
+		df.length = featureLength
+	} else {
+		panic("Attempt to add column with mismatched length to a non-empty dataframe")
+	}
+}
+
+func (df *DataFrame) AddRow(row []interface{}) {
+	if len(df.feature) == len(row) {
+		for i, f := range df.feature {
+			if f.Length() == df.length {
+				f.Add(row[i])
+			} else {
+				panic("Attempt to add row to dataframe with mismatched feature lengths")
+			}
 		}
+		df.length += 1
 	} else {
 		panic(fmt.Sprintf("Attempt to add a row of length %d to "+
-			"DataFrame with %d columns", len(row), len(nf.feature)))
+			"DataFrame with %d columns", len(row), len(df.feature)))
 	}
 }
 
-func (nf *DataFrame) Width() int { return len(nf.feature) }
+func (df *DataFrame) Width() int { return len(df.feature) }
 
-func (nf *DataFrame) Length() int {
-	if nf.empty {
-		return 0
-	} else {
-		return nf.feature[0].Length()
-	}
+func (df *DataFrame) Length() int {
+	return df.length
 }
 
-func (nf *DataFrame) ColumnName(index int) string {
-	return nf.feature[index].Name()
+func (df *DataFrame) ColumnName(index int) string {
+	return df.feature[index].Name()
 }
 
-func (nf *DataFrame) Row(index int) []interface{} {
-	result := make([]interface{}, len(nf.feature))
+func (df *DataFrame) Row(index int) []interface{} {
+	result := make([]interface{}, len(df.feature))
 
-	for i, f := range nf.feature {
+	for i, f := range df.feature {
 		result[i] = f.Get(index)
 	}
 
 	return result
 }
 
-func (nf *DataFrame) Get(i, j int) interface{} {
-	return nf.feature[j].Get(i)
+func (df *DataFrame) Get(i, j int) interface{} {
+	return df.feature[j].Get(i)
 }
