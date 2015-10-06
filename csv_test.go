@@ -55,7 +55,6 @@ func (handler *Handler) Abort() {
 
 // TestCSV
 func TestCSV(test *testing.T) {
-
 	reader := strings.NewReader(data)
 	err := csv.Import(reader, &Handler{test, nil, 0})
 
@@ -64,7 +63,7 @@ func TestCSV(test *testing.T) {
 	}
 
 	if !finalizeCalled {
-		test.Error("Finalize wasn't called")
+		test.Error("Finalize was never called")
 	}
 
 	if abortCalled {

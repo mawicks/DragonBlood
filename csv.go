@@ -7,20 +7,24 @@ import (
 )
 
 type CSVHandler interface {
-	// Importer calls Header() with the first row (assume to be a header row)
+	// Import() calls CSVHandler.Header() with the first row (assumed to be a header row)
 	Header(header []string)
 
-	// Importer calls Add() in each record after the required header
+	// Import() calls CSVHandler.Add() in each record after the required header
 	// Header() will be called for Add()
 	Add(data []string)
 
-	// Importer calls Finalize() when entire file is read successfully.
+	// Import() calls CSVHandler.Finalize() when entire file is read successfully.
 	Finalize()
 
-	// Importer calls Abort() is an error occurs before the reading the entire file.
+	// Import() calls Abort() if any error occurs before reading to the end of the file.
 	Abort()
 }
 
+// Import() reads a CSV file from an io.Reader object.
+// Client-provided callbacks are provided by an implemention of
+// CSVHandler.  It returns any error that occured file reading or
+// parsing the file.
 func Import(reader io.Reader, handler CSVHandler) error {
 	var data []string
 	csvReader := csv.NewReader(reader)
@@ -44,8 +48,10 @@ func Import(reader io.Reader, handler CSVHandler) error {
 
 func ImportFile(filename string, handler CSVHandler) error {
 	file, err := os.Open(filename)
-	if err != nil {
+	if err == nil {
+		defer file.Close()
+		return Import(file, handler)
+	} else {
 		return err
 	}
-	return Import(file, handler)
 }
