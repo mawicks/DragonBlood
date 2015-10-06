@@ -8,15 +8,12 @@ import (
 type Feature interface {
 	Length() int
 	Add(interface{})
+	AddFromString(string)
 	Get(int) interface{}
 	Name() string
 }
 
-type FeatureFactory interface {
-	New(name string) Feature
-}
-
-// Type: NumericFeature
+// NumericFeature implements Feature
 type NumericFeature struct {
 	name   string
 	values []float64
@@ -54,6 +51,44 @@ func (nf *NumericFeature) Get(index int) interface{} { return nf.values[index] }
 
 func (nf *NumericFeature) Length() int { return len(nf.values) }
 
+// CategoricalFeature implements Feature
+type CategoricalFeature struct {
+	name        string
+	stringTable StringTable
+	values      []int
+}
+
+func NewCategoricalFeature(name string, st StringTable) *CategoricalFeature {
+	return &CategoricalFeature{name, st, make([]int, 0)}
+}
+
+func (nf *CategoricalFeature) Name() string { return nf.name }
+
+func (nf *CategoricalFeature) Add(any interface{}) {
+	// For now, only accept strings:
+	s := any.(string)
+
+	// Called for its side effects, so the return values are ignored
+	nf.AddFromString(s)
+}
+
+func (nf *CategoricalFeature) AddFromString(s string) {
+	// Called for its side effects, so the return values are ignored
+	m, _ := nf.stringTable.Map(s)
+	nf.values = append(nf.values, m)
+}
+
+func (nf *CategoricalFeature) Get(index int) interface{} {
+	return nf.stringTable.Unmap(nf.values[index])
+}
+
+func (nf *CategoricalFeature) Length() int { return len(nf.values) }
+
+// FeatureFactory
+type FeatureFactory interface {
+	New(name string) Feature
+}
+
 // Type: NumericFeatureFactory
 type NumericFeatureFactory struct{}
 
@@ -61,4 +96,13 @@ func NewNumericFeatureFactory() FeatureFactory { return NumericFeatureFactory{} 
 
 func (NumericFeatureFactory) New(name string) Feature {
 	return NewNumericFeature(name)
+}
+
+// Type: CategoricalFeatureFactory
+type CategoricalFeatureFactory struct{}
+
+func NewCategoricalFeatureFactory() FeatureFactory { return CategoricalFeatureFactory{} }
+
+func (CategoricalFeatureFactory) New(name string) Feature {
+	return NewCategoricalFeature(name, NewStringTable())
 }
