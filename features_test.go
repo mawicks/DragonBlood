@@ -23,7 +23,7 @@ func TestNumericFeature(t *testing.T) {
 	}
 
 	check := func(index int, expected float64) {
-		actual := nf.Get(index)
+		actual := nf.Get(index).(float64)
 		if actual != expected && math.IsNaN(actual) != math.IsNaN(expected) {
 			t.Errorf("Get(%d) got %g; expecting %g", index, actual, expected)
 		}
