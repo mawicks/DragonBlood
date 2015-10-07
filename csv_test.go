@@ -33,7 +33,8 @@ func (handler *Handler) Header(header []string) {
 func (handler *Handler) Add(fields []string) {
 	for i, _ := range expectedHeader {
 		if expectedRows[handler.count][i] != fields[i] {
-			handler.test.Errorf("Got %v; expected %v", fields[i], expectedRows[handler.count][i])
+			handler.test.Errorf("Got %v; expected %v",
+				fields[i], expectedRows[handler.count][i])
 		}
 	}
 	handler.count += 1

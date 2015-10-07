@@ -10,8 +10,8 @@ type CSVHandler interface {
 	// Import() calls CSVHandler.Header() with the first row (assumed to be a header row)
 	Header(header []string)
 
-	// Import() calls CSVHandler.Add() in each record after the required header
-	// Header() will be called for Add()
+	// Import() calls CSVHandler.Add() in each record after the required header.
+	// Header() is called before Add() is called.
 	Add(data []string)
 
 	// Import() calls CSVHandler.Finalize() when entire file is read successfully.
