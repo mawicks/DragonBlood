@@ -79,7 +79,8 @@ func TestCSVHandler(t *testing.T) {
 	df := handler.DataFrame()
 	for i := 0; i < 2; i++ {
 		for j := 0; j < 3; j++ {
-			fmt.Printf("%v ", df.Get(i, j))
+			//			fmt.Printf("%v ", df.Get(i, j))
+			df.Get(i, j)
 		}
 		fmt.Printf("\n")
 	}

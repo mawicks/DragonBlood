@@ -16,7 +16,7 @@ func NewDataFrame() *DataFrame {
 }
 
 func (df *DataFrame) AddFeature(feature Feature) {
-	featureLength := feature.Length()
+	featureLength := feature.Len()
 	if df.length == 0 || featureLength == df.length {
 		df.columnMap[feature.Name()] = len(df.feature)
 		df.feature = append(df.feature, feature)
@@ -29,7 +29,7 @@ func (df *DataFrame) AddFeature(feature Feature) {
 func (df *DataFrame) AddRow(row []interface{}) {
 	if len(df.feature) == len(row) {
 		for i, f := range df.feature {
-			if f.Length() == df.length {
+			if f.Len() == df.length {
 				f.Add(row[i])
 			} else {
 				panic("Attempt to add row to dataframe with mismatched feature lengths")
@@ -45,7 +45,7 @@ func (df *DataFrame) AddRow(row []interface{}) {
 func (df *DataFrame) AddStringRow(row []string) {
 	if len(df.feature) == len(row) {
 		for i, f := range df.feature {
-			if f.Length() == df.length {
+			if f.Len() == df.length {
 				f.AddFromString(row[i])
 			} else {
 				panic("Attempt to add row to dataframe with mismatched feature lengths")
@@ -72,14 +72,14 @@ func (df *DataFrame) Row(index int) []interface{} {
 	result := make([]interface{}, len(df.feature))
 
 	for i, f := range df.feature {
-		result[i] = f.Get(index)
+		result[i] = f.Value(index)
 	}
 
 	return result
 }
 
 func (df *DataFrame) Get(i, j int) interface{} {
-	return df.feature[j].Get(i)
+	return df.feature[j].Value(i)
 }
 
 type csvHandler struct {

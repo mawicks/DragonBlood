@@ -3,10 +3,10 @@ package DragonBlood
 type StringTable interface {
 	// Map string to an integer and return ok if the string was
 	// already in the table.
-	Map(string) (result int, ok bool)
+	Encode(string) (result int, ok bool)
 
 	// Return the string that maps to the passed int.
-	Unmap(int) string
+	Decode(int) string
 }
 
 // stringTable is an implementation of the StringTable interface
@@ -23,7 +23,7 @@ func NewStringTable() *stringTable {
 	}
 }
 
-func (st *stringTable) Map(s string) (int, bool) {
+func (st *stringTable) Encode(s string) (int, bool) {
 	m, ok := st.mapper[s]
 	if !ok {
 		m = len(st.unmapper)
@@ -33,6 +33,6 @@ func (st *stringTable) Map(s string) (int, bool) {
 	return m, ok
 }
 
-func (st *stringTable) Unmap(i int) string {
+func (st *stringTable) Decode(i int) string {
 	return st.unmapper[i]
 }

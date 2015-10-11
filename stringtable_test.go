@@ -18,8 +18,8 @@ func TestStringTable(test *testing.T) {
 	// cycles.
 	for i := 0; i < 2; i++ {
 		for _, s := range test_strings {
-			m, ok := table.Map(s)
-			u := table.Unmap(m)
+			m, ok := table.Encode(s)
+			u := table.Decode(m)
 			if u != s {
 				test.Errorf(`"%s" mapped back to "%s" during cycle %d`, s, u, i)
 			}
