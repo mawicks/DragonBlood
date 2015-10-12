@@ -15,13 +15,13 @@ func NewSSEAccumulator() *SSEAccumulator {
 	return &SSEAccumulator{}
 }
 
-func (a *SSEAccumulator) Add(x float64) float64 {
+func (a *SSEAccumulator) Add(x float64) (sse, mean float64) {
 	e := x - a.mean
 	a.mean += e / float64(a.count+1)
 	a.sumSquaredError += e * e * float64(a.count) / float64(a.count+1)
 	a.count += 1
 
-	return a.sumSquaredError
+	return a.sumSquaredError, a.mean
 }
 
 func (a *SSEAccumulator) Mean() float64 {
@@ -35,7 +35,11 @@ func (a *SSEAccumulator) Value() float64 {
 	return a.sumSquaredError
 }
 
-func (a *SSEAccumulator) Subtract(x float64) float64 {
+func (a *SSEAccumulator) Count() int {
+	return a.count
+}
+
+func (a *SSEAccumulator) Subtract(x float64) (sse, mean float64) {
 	if a.count == 0 {
 		panic("Subtract() called more than Add()")
 	} else if a.count > 1 {
@@ -50,7 +54,7 @@ func (a *SSEAccumulator) Subtract(x float64) float64 {
 		a.Reset()
 	}
 
-	return a.sumSquaredError
+	return a.sumSquaredError, a.mean
 }
 
 func (a *SSEAccumulator) Reset() {
