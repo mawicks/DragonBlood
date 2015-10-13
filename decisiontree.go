@@ -2,6 +2,7 @@ package DragonBlood
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 
 	"github.com/mawicks/DragonBlood/stats"
@@ -39,7 +40,6 @@ type DecisionTreeNode struct {
 }
 
 type SplitInfo struct {
-	feature  int
 	splitter Splitter
 	metric   float64
 
@@ -48,87 +48,172 @@ type SplitInfo struct {
 	leftMetric, rightMetric         float64
 }
 
+type FeatureSplitInfo struct {
+	feature int
+	*SplitInfo
+}
+
 type MSEAccumulator struct {
-	left, right stats.SSEAccumulator
-	count       int
+	previousValue float64
+	left, right   *stats.SSEAccumulator
+
+	count          int
+	bestMetric     float64
+	bestSplitValue float64
+
+	bestLeftSize       int
+	bestLeftMetric     float64
+	bestLeftPrediction float64
+
+	bestRightSize       int
+	bestRightMetric     float64
+	bestRightPrediction float64
+}
+
+func NewMSEAccumulator() *MSEAccumulator {
+	return &MSEAccumulator{
+		left:          stats.NewSSEAccumulator(),
+		right:         stats.NewSSEAccumulator(),
+		bestMetric:    math.Inf(1),
+		previousValue: math.Inf(-1),
+	}
 }
 
 // Add to "right" tally
-func (a *MSEAccumulator) Add(t float64, count int) (mse, prediction float64) {
-	for i := 0; i < count; i++ {
-		a.right.Add(t)
-	}
-	a.count += count
-
-	return a.right.MSE(), a.right.Mean()
+func (a *MSEAccumulator) Add(t float64) {
+	a.right.Add(t)
+	a.count += 1
 }
 
-// Move an  from right to left. Return resulting composite metric for this split.
-func (a *MSEAccumulator) Move(t float64, count int) float64 {
-	for i := 0; i < count; i++ {
-		a.right.Subtract(t)
-		a.left.Add(t)
+// Move an attribute value from right to left. Return resulting
+// composite metric for this split.
+func (a *MSEAccumulator) Move(f, t float64) {
+	if f != a.previousValue { // End of a run of identical values
+		metric := (a.left.Value() + a.right.Value()) / float64(a.count)
+		if metric < a.bestMetric {
+			a.bestMetric = metric
+			a.bestSplitValue = 0.5 * (f + a.previousValue)
+
+			if a.bestLeftSize = a.left.Count(); a.bestLeftSize > 0 {
+				a.bestLeftMetric = a.left.MSE()
+				a.bestLeftPrediction = a.left.Mean()
+			}
+
+			if a.bestRightSize = a.right.Count(); a.bestRightSize > 0 {
+				a.bestRightMetric = a.right.MSE()
+				a.bestRightPrediction = a.right.Mean()
+			}
+		}
+		a.previousValue = f
 	}
-	return (a.left.Value() + a.right.Value()) / float64(a.count)
+	a.right.Subtract(t)
+	a.left.Add(t)
 }
 
-func optimalSplit(f DecisionTreeFeature,
+func (a *MSEAccumulator) BestSplit() *SplitInfo {
+	bestSplitValue := a.bestSplitValue
+	if a.bestLeftSize != 0 && a.bestRightSize != 0 {
+		return &SplitInfo{
+			// Closure is on copy of a.bestSplitValue, which can't change.
+			splitter:        func(x float64) bool { return x < bestSplitValue },
+			metric:          a.bestMetric,
+			leftSize:        a.bestLeftSize,
+			rightSize:       a.bestRightSize,
+			leftPrediction:  a.bestLeftPrediction,
+			rightPrediction: a.bestRightPrediction,
+			leftMetric:      a.bestLeftMetric,
+			rightMetric:     a.bestRightMetric,
+		}
+	} else {
+		return nil
+	}
+}
+
+func dtOptimalSplit(
+	iFeature int,
+	f DecisionTreeFeature,
 	target DecisionTreeTarget,
 	splittableNodes []*DecisionTreeNode,
 	nodeMembership []int,
 	bag Bag,
-	minSize int) []*SplitInfo {
-	result := make([]*SplitInfo, len(splittableNodes))
-	return result
-}
+	minSize int) []*FeatureSplitInfo {
 
-func isSplittable(node *DecisionTreeNode, minSize int) bool {
-	return node.size > 2*minSize
+	fmt.Printf("\ndtOptimalSplit:\n\tfeature: %#v\n\ttarget: %#v\n\tbag: %#v\n", f, target, bag)
+
+	accumulators := make([]*MSEAccumulator, len(splittableNodes))
+	for i, _ := range accumulators {
+		accumulators[i] = NewMSEAccumulator()
+	}
+
+	// First pass - accumulate stats with all points to right of split
+	// Add points from right to left so they are removed in LIFO order
+	for i := len(nodeMembership) - 1; i >= 0; i-- {
+		iOrdered := f.InOrder(i)
+		if nm := nodeMembership[i]; nm >= 0 {
+			for j := 0; j < bag[i]; j++ {
+				accumulators[nm].Add(target.NumericValue(iOrdered))
+			}
+		}
+	}
+
+	// Second pass - move points from right to left and evalute new metric
+	for i, nm := range nodeMembership {
+		iOrdered := f.InOrder(i)
+		if nm >= 0 {
+			for j := 0; j < bag[i]; j++ {
+				accumulators[nm].Move(f.NumericValue(iOrdered), target.NumericValue(iOrdered))
+			}
+		}
+	}
+
+	result := make([]*FeatureSplitInfo, len(splittableNodes))
+	for i, _ := range result {
+		result[i] = &FeatureSplitInfo{iFeature, accumulators[i].BestSplit()}
+	}
+
+	fmt.Printf("\treturning: %#v\n", result)
+	return result
 }
 
 type DecisionTree struct{}
 
-func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag, maxFeatures int, minSize int) *DecisionTreeNode {
+func dtInitialize(target DecisionTreeTarget, bag Bag) ([]*DecisionTreeNode, []int) {
 	node := &DecisionTreeNode{}
-
-	if maxFeatures > len(features) {
-		maxFeatures = len(features)
-	}
-
-	rootNodeSplittable := isSplittable(node, minSize)
-
-	// nextSplittableNodes is next generation of splittableNodes.
-	// It is initialized here (and re-generated during each
-	// iteration) and contains pointers to nodes that are eligible
-	// for splitting during next generation.
-	initialSplittableNodes := make([]*DecisionTreeNode, 0, 1)
-	if rootNodeSplittable {
-		initialSplittableNodes = append(initialSplittableNodes, node)
-	}
 
 	splittableNodeMembership := make([]int, len(bag))
 	acc := stats.NewSSEAccumulator()
 	for i, b := range bag {
-		if b > 0 && rootNodeSplittable {
-			splittableNodeMembership[i] = 0 // Root node
-		} else {
-			splittableNodeMembership[i] = -1 // An impossible node reference
-		}
-		if b > 0 {
-			for j := 0; j < b; j++ {
-				acc.Add(target.NumericValue(i))
-			}
+		splittableNodeMembership[i] = 0 // Root node
+		for j := 0; j < b; j++ {
+			acc.Add(target.NumericValue(i))
 		}
 	}
 
 	node.prediction = acc.Mean()
 	node.metric = acc.MSE()
 
+	// nextSplittableNodes is next generation of splittableNodes.
+	// It is initialized here (and re-generated during each
+	// iteration) and contains pointers to nodes that are eligible
+	// for splitting during next generation.
+	initialSplittableNodes := []*DecisionTreeNode{node}
+
+	return initialSplittableNodes, splittableNodeMembership
+}
+
+func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag, maxFeatures int, minSize int) *DecisionTreeNode {
+	if maxFeatures > len(features) {
+		maxFeatures = len(features)
+	}
+
+	initialSplittableNodes, splittableNodeMembership := dtInitialize(target, bag)
+	root := initialSplittableNodes[0]
+
 	type SplitPair struct{ left, right int }
 
 	// candidateSplittsByFeature is a fixed length slices that is
 	// re-used during each iteration
-	candidateSplitsByFeature := make([][]*SplitInfo, len(features))
+	candidateSplitsByFeature := make([][]*FeatureSplitInfo, len(features))
 
 	var nextSplittableNodes []*DecisionTreeNode
 	for splittableNodes := initialSplittableNodes; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
@@ -142,10 +227,10 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 		nodeSplits := make([]*SplitPair, 0, len(splittableNodes))
 
 		for i, feature := range features {
-			candidateSplitsByFeature[i] = optimalSplit(feature, target, splittableNodes, splittableNodeMembership, bag, minSize)
+			candidateSplitsByFeature[i] = dtOptimalSplit(i, feature, target, splittableNodes, splittableNodeMembership, bag, minSize)
 		}
-		candidateSplits := make([]*SplitInfo, 0, len(features))
-		bestSplits := make([]*SplitInfo, 0, len(splittableNodes))
+		candidateSplits := make([]*FeatureSplitInfo, 0, len(features))
+		bestSplits := make([]*FeatureSplitInfo, 0, len(splittableNodes))
 
 		for inode, node := range splittableNodes {
 			candidateSplits = candidateSplits[:0]
@@ -155,7 +240,7 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 				}
 			}
 
-			var bestSplit *SplitInfo
+			var bestSplit *FeatureSplitInfo
 			for i := 0; i < maxFeatures && i < len(candidateSplits); i++ {
 				irand := i + rand.Intn(len(features)-i)
 				candidateSplits[i], candidateSplits[irand] = candidateSplits[irand], candidateSplits[i]
@@ -170,17 +255,11 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 				leftChild := &DecisionTreeNode{size: bestSplit.leftSize, prediction: bestSplit.leftPrediction, metric: bestSplit.leftMetric}
 				rightChild := &DecisionTreeNode{size: bestSplit.rightSize, prediction: bestSplit.rightPrediction, metric: bestSplit.rightMetric}
 
-				leftIndex := -1
-				if isSplittable(leftChild, minSize) {
-					leftIndex = len(nextSplittableNodes)
-					nextSplittableNodes = append(nextSplittableNodes, leftChild)
-				}
+				leftIndex := len(nextSplittableNodes)
+				nextSplittableNodes = append(nextSplittableNodes, leftChild)
 
-				rightIndex := -1
-				if isSplittable(rightChild, minSize) {
-					rightIndex = len(nextSplittableNodes)
-					nextSplittableNodes = append(nextSplittableNodes, rightChild)
-				}
+				rightIndex := len(nextSplittableNodes)
+				nextSplittableNodes = append(nextSplittableNodes, rightChild)
 
 				nodeSplits = append(nodeSplits, &SplitPair{left: leftIndex, right: rightIndex})
 			}
@@ -197,13 +276,16 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 					} else { // Right
 						splittableNodeMembership[i] = nodeSplits[sn].right
 					}
-				} else { // No split exists even though node passed isSplittable() test
+				} else { // No split exists --- this record has reached a leaf node.
 					splittableNodeMembership[i] = -1 // An impossible node reference
+					if bag[i] > 0 {
+						// TODO:  Compute OOB scores
+					}
 				}
 			}
 		}
 	}
-	return node
+	return root
 }
 
 // Bag
@@ -240,15 +322,16 @@ func NewDecisionTreeRegressor() *DecisionTreeRegressor {
 
 func (rf *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
 	bag := Bag(make([]int, features[0].Len()))
-	for i := 0; i < 3; i++ {
-		bag.Resample()
-		fmt.Printf("%#v\n", bag)
-	}
+	bag.Resample()
+	fmt.Printf("%#v\n", bag)
 
 	for _, f := range features {
 		f.Sort()
 		fmt.Printf("%#v\n", f)
 	}
+	dt := &DecisionTree{}
+	dt.Fit(features, target, bag, 10, 1)
+
 }
 
 func (rf *DecisionTreeRegressor) Predict(features []Feature) []float64 {
