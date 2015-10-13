@@ -88,6 +88,12 @@ func (a *MSEAccumulator) Add(t float64) {
 // Move an attribute value from right to left. Return resulting
 // composite metric for this split.
 func (a *MSEAccumulator) Move(f, t float64) {
+	fmt.Printf("Move(%v, %v)\n", f, t)
+	fmt.Printf("\t before left value: %v; ", a.left.Value())
+	fmt.Printf("right value: %v\n", a.right.Value())
+	fmt.Printf("\t before left mean: %v; ", a.left.Mean())
+	fmt.Printf("right mean: %v\n", a.right.Mean())
+
 	if f != a.previousValue { // End of a run of identical values
 		metric := (a.left.Value() + a.right.Value()) / float64(a.count)
 		if metric < a.bestMetric {
@@ -108,12 +114,16 @@ func (a *MSEAccumulator) Move(f, t float64) {
 	}
 	a.right.Subtract(t)
 	a.left.Add(t)
+	fmt.Printf("\t after left value: %v; ", a.left.Value())
+	fmt.Printf("right value: %v\n", a.right.Value())
 }
 
 func (a *MSEAccumulator) BestSplit() *SplitInfo {
+	var result *SplitInfo
+
 	bestSplitValue := a.bestSplitValue
 	if a.bestLeftSize != 0 && a.bestRightSize != 0 {
-		return &SplitInfo{
+		result = &SplitInfo{
 			// Closure is on copy of a.bestSplitValue, which can't change.
 			splitter:        func(x float64) bool { return x < bestSplitValue },
 			metric:          a.bestMetric,
@@ -125,8 +135,15 @@ func (a *MSEAccumulator) BestSplit() *SplitInfo {
 			rightMetric:     a.bestRightMetric,
 		}
 	} else {
-		return nil
+		result = nil
 	}
+	if result != nil {
+		fmt.Printf("returning: %+v", *result)
+	} else {
+		fmt.Printf("returning: nil")
+	}
+
+	return result
 }
 
 func dtOptimalSplit(
@@ -138,7 +155,7 @@ func dtOptimalSplit(
 	bag Bag,
 	minSize int) []*FeatureSplitInfo {
 
-	fmt.Printf("\ndtOptimalSplit:\n\tfeature: %#v\n\ttarget: %#v\n\tbag: %#v\n", f, target, bag)
+	fmt.Printf("\ndtOptimalSplit:\n\tfeature: %+v\n\ttarget: %+v\n\tbag: %+v\n", f, target, bag)
 
 	accumulators := make([]*MSEAccumulator, len(splittableNodes))
 	for i, _ := range accumulators {
@@ -149,8 +166,8 @@ func dtOptimalSplit(
 	// Add points from right to left so they are removed in LIFO order
 	for i := len(nodeMembership) - 1; i >= 0; i-- {
 		iOrdered := f.InOrder(i)
-		if nm := nodeMembership[i]; nm >= 0 {
-			for j := 0; j < bag[i]; j++ {
+		if nm := nodeMembership[iOrdered]; nm >= 0 {
+			for j := 0; j < bag[iOrdered]; j++ {
 				accumulators[nm].Add(target.NumericValue(iOrdered))
 			}
 		}
@@ -160,7 +177,7 @@ func dtOptimalSplit(
 	for i, nm := range nodeMembership {
 		iOrdered := f.InOrder(i)
 		if nm >= 0 {
-			for j := 0; j < bag[i]; j++ {
+			for j := 0; j < bag[iOrdered]; j++ {
 				accumulators[nm].Move(f.NumericValue(iOrdered), target.NumericValue(iOrdered))
 			}
 		}
@@ -171,7 +188,7 @@ func dtOptimalSplit(
 		result[i] = &FeatureSplitInfo{iFeature, accumulators[i].BestSplit()}
 	}
 
-	fmt.Printf("\treturning: %#v\n", result)
+	fmt.Printf("\treturning: %+v\n", result)
 	return result
 }
 
@@ -323,11 +340,11 @@ func NewDecisionTreeRegressor() *DecisionTreeRegressor {
 func (rf *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
 	bag := Bag(make([]int, features[0].Len()))
 	bag.Resample()
-	fmt.Printf("%#v\n", bag)
+	fmt.Printf("%+v\n", bag)
 
 	for _, f := range features {
 		f.Sort()
-		fmt.Printf("%#v\n", f)
+		fmt.Printf("%+v\n", f)
 	}
 	dt := &DecisionTree{}
 	dt.Fit(features, target, bag, 10, 1)
