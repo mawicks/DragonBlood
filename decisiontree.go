@@ -89,8 +89,10 @@ func (a *MSEAccumulator) Add(t float64) {
 // composite metric for this split.
 func (a *MSEAccumulator) Move(f, t float64) {
 	fmt.Printf("Move(%v, %v)\n", f, t)
+
 	fmt.Printf("\t before left value: %v; ", a.left.Value())
 	fmt.Printf("right value: %v\n", a.right.Value())
+
 	fmt.Printf("\t before left mean: %v; ", a.left.Mean())
 	fmt.Printf("right mean: %v\n", a.right.Mean())
 
@@ -112,6 +114,7 @@ func (a *MSEAccumulator) Move(f, t float64) {
 		}
 		a.previousValue = f
 	}
+
 	a.right.Subtract(t)
 	a.left.Add(t)
 	fmt.Printf("\t after left value: %v; ", a.left.Value())
@@ -122,6 +125,7 @@ func (a *MSEAccumulator) BestSplit() *SplitInfo {
 	var result *SplitInfo
 
 	bestSplitValue := a.bestSplitValue
+	fmt.Printf("bestsplitvalue: %v\n", bestSplitValue)
 	if a.bestLeftSize != 0 && a.bestRightSize != 0 {
 		result = &SplitInfo{
 			// Closure is on copy of a.bestSplitValue, which can't change.
@@ -138,9 +142,9 @@ func (a *MSEAccumulator) BestSplit() *SplitInfo {
 		result = nil
 	}
 	if result != nil {
-		fmt.Printf("returning: %+v", *result)
+		fmt.Printf("BestSplit() returning: %+v\n", *result)
 	} else {
-		fmt.Printf("returning: nil")
+		fmt.Printf("BestSplit() returning: nil\n")
 	}
 
 	return result
@@ -174,9 +178,9 @@ func dtOptimalSplit(
 	}
 
 	// Second pass - move points from right to left and evalute new metric
-	for i, nm := range nodeMembership {
+	for i, _ := range nodeMembership {
 		iOrdered := f.InOrder(i)
-		if nm >= 0 {
+		if nm := nodeMembership[iOrdered]; nm >= 0 {
 			for j := 0; j < bag[iOrdered]; j++ {
 				accumulators[nm].Move(f.NumericValue(iOrdered), target.NumericValue(iOrdered))
 			}
@@ -185,10 +189,14 @@ func dtOptimalSplit(
 
 	result := make([]*FeatureSplitInfo, len(splittableNodes))
 	for i, _ := range result {
-		result[i] = &FeatureSplitInfo{iFeature, accumulators[i].BestSplit()}
+		if bestSplit := accumulators[i].BestSplit(); bestSplit != nil {
+			result[i] = &FeatureSplitInfo{iFeature, bestSplit}
+		} else {
+			result[i] = nil
+		}
 	}
 
-	fmt.Printf("\treturning: %+v\n", result)
+	fmt.Printf("\tdtOptimalSplit returning: %+v\n", result)
 	return result
 }
 
@@ -234,6 +242,9 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 
 	var nextSplittableNodes []*DecisionTreeNode
 	for splittableNodes := initialSplittableNodes; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
+		fmt.Println("\n\n*** New Iteration ***")
+		fmt.Printf("bag: %v\n", bag)
+		fmt.Printf("splittableNodeMembership: %v\n", splittableNodeMembership)
 		nextSplittableNodes = make([]*DecisionTreeNode, 0, 2*len(splittableNodes))
 
 		// nodeSplits is generated during each iteration and
@@ -252,7 +263,7 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 		for inode, node := range splittableNodes {
 			candidateSplits = candidateSplits[:0]
 			for _, nodeCandidateSplits := range candidateSplitsByFeature {
-				if nodeCandidateSplits[inode].metric < node.metric {
+				if nodeCandidateSplits[inode] != nil && nodeCandidateSplits[inode].metric < node.metric {
 					candidateSplits = append(candidateSplits, nodeCandidateSplits[inode])
 				}
 			}
@@ -281,6 +292,14 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 				nodeSplits = append(nodeSplits, &SplitPair{left: leftIndex, right: rightIndex})
 			}
 			bestSplits = append(bestSplits, bestSplit)
+		}
+		fmt.Println("Best splits: ")
+		for _, bs := range bestSplits {
+			if bs != nil {
+				fmt.Printf("feature: %v %+v\n", bs.feature, bs.SplitInfo)
+			} else {
+				fmt.Printf("feature: nil\n")
+			}
 		}
 
 		// Assign each unit to its child node
