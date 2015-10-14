@@ -28,7 +28,11 @@ func (a *SSEAccumulator) Mean() float64 {
 	return a.mean
 }
 func (a *SSEAccumulator) MSE() float64 {
-	return a.mean / float64(a.count)
+	if a.count > 0 {
+		return a.sumSquaredError / float64(a.count)
+	} else {
+		return 0.0
+	}
 }
 
 func (a *SSEAccumulator) Value() float64 {

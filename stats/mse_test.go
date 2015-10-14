@@ -25,6 +25,9 @@ func TestSSEAccumulator(test *testing.T) {
 		if sse != s[i] {
 			test.Errorf("Expected sse of %v; got %v", s[i], sse)
 		}
+		if a.MSE() != s[i]/float64(i+1) {
+			test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.MSE())
+		}
 		if mean != mu[i] {
 			test.Errorf("Expected mean of %v; got %v", s[i], mean)
 		}
@@ -46,9 +49,12 @@ func TestSSEAccumulator(test *testing.T) {
 			if mean != mu[i-1] {
 				test.Errorf("Expected mean of %v; got %v", mu[i-1], a.Value())
 			}
+			if a.MSE() != s[i-1]/float64(i) {
+				test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.MSE())
+			}
 		} else {
-			if sse != 0.0 || mean != 0.0 || a.Count() != 0.0 {
-				fmt.Printf("Error is %v; mean is %v; count is %v but all should be zero", sse, mean, a.Count())
+			if sse != 0.0 || mean != 0.0 || a.Count() != 0 || a.MSE() != 0.0 {
+				fmt.Printf("Error is %v; mean is %v; count is %v; MSE is %v but all should be zero", sse, mean, a.Count(), a.MSE())
 			}
 		}
 	}
