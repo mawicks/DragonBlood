@@ -7,17 +7,17 @@ import (
 )
 
 func TestDecisionTree(test *testing.T) {
-	x := db.NewNumericFeature("x")
-	x.Add(0, 1, 2, 3, 4)
+	x := db.NewNumericFeature("x0")
+	x.Add(0, 1, 2, 3, 4, 5, 6, 7)
 
-	y := db.NewNumericFeature("y")
-	y.Add(1, 1, 1, 2, 2)
+	y := db.NewNumericFeature("y1")
+	y.Add(1, 2, 1, 2, 1, 2, 1, 2)
 
-	z := db.NewNumericFeature("z")
-	z.Add(1, 2, 1, 2, 1)
+	z := db.NewNumericFeature("z2")
+	z.Add(1, 1, 1, 1, 2, 2, 2, 2)
 
 	t := db.NewNumericFeature("t")
-	t.Add(3, 0, 3, 1, 7)
+	t.Add(3, 0, 3, 1, 7, 6, 5, -1)
 
 	rfFeatures := make([]db.DecisionTreeFeature, 0)
 	for _, f := range []*db.NumericFeature{x, y, z} {
