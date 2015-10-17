@@ -53,9 +53,9 @@ func (rfp attributeIndexSlice) Less(i, j int) bool {
 
 // NumericFeature implements Feature
 type NumericFeature struct {
-	name                string
-	values              []float64
-	attributeIndexSlice attributeIndexSlice
+	name       string
+	values     []float64
+	orderIndex attributeIndexSlice
 }
 
 func NewNumericFeature(name string) *NumericFeature {
@@ -99,61 +99,85 @@ func (nf *NumericFeature) Value(index int) interface{}    { return nf.values[ind
 func (nf *NumericFeature) Len() int { return len(nf.values) }
 
 func (nf *NumericFeature) Sort() {
-	nf.attributeIndexSlice = make(attributeIndexSlice, 0)
+	nf.orderIndex = make(attributeIndexSlice, 0)
 	for i, v := range nf.values {
-		nf.attributeIndexSlice = append(nf.attributeIndexSlice, attributeIndex{v, i})
+		nf.orderIndex = append(nf.orderIndex, attributeIndex{v, i})
 	}
-	sort.Sort(nf.attributeIndexSlice)
+	sort.Sort(nf.orderIndex)
 }
 
 func (nf *NumericFeature) InOrder(index int) int {
-	return nf.attributeIndexSlice[index].index
+	return nf.orderIndex[index].index
 }
+
+type intAttributeIndex struct {
+	attribute int
+	index     int
+}
+
+type intAttributeIndexSlice []intAttributeIndex
 
 // CategoricalFeature implements Feature
 type CategoricalFeature struct {
 	name        string
 	stringTable StringTable
 	values      []int
+	orderIndex  intAttributeIndexSlice
 }
 
 func NewCategoricalFeature(name string, st StringTable) *CategoricalFeature {
-	return &CategoricalFeature{name, st, make([]int, 0)}
+	return &CategoricalFeature{name, st, make([]int, 0), nil}
 }
 
-func (nf *CategoricalFeature) Name() string { return nf.name }
+func (cf *CategoricalFeature) Name() string { return cf.name }
 
-func (nf *CategoricalFeature) Add(anyValues ...interface{}) {
+func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
 	for _, any := range anyValues {
 		// For now, only accept strings:
 		s := any.(string)
 
 		// Called for its side effects, so the return values are ignored
-		nf.AddFromString(s)
+		cf.AddFromString(s)
 	}
 }
 
-func (nf *CategoricalFeature) AddFromString(strings ...string) {
+func (cf *CategoricalFeature) AddFromString(strings ...string) {
 	for _, s := range strings {
 		// Called for its side effects, so the return values are ignored
-		m, _ := nf.stringTable.Encode(s)
-		nf.values = append(nf.values, m)
+		m, _ := cf.stringTable.Encode(s)
+		cf.values = append(cf.values, m)
 	}
 }
 
-func (nf *CategoricalFeature) NumericValue(index int) float64 {
-	return float64(nf.values[index])
+func (cf *CategoricalFeature) NumericValue(index int) float64 {
+	return float64(cf.values[index])
 }
 
-func (nf *CategoricalFeature) Decode(x float64) interface{} {
-	return nf.stringTable.Decode(int(x))
+func (cf *CategoricalFeature) Decode(x float64) interface{} {
+	return cf.stringTable.Decode(int(x))
 }
 
-func (nf *CategoricalFeature) Value(index int) interface{} {
-	return nf.stringTable.Decode(nf.values[index])
+func (cf *CategoricalFeature) Value(index int) interface{} {
+	return cf.stringTable.Decode(cf.values[index])
 }
 
-func (nf *CategoricalFeature) Len() int { return len(nf.values) }
+func (cf *CategoricalFeature) Len() int { return len(cf.values) }
+
+func (ais intAttributeIndexSlice) Swap(i, j int)      { ais[i], ais[j] = ais[j], ais[i] }
+func (ais intAttributeIndexSlice) Len() int           { return len(ais) }
+func (ais intAttributeIndexSlice) Less(i, j int) bool { return ais[i].attribute < ais[j].attribute }
+
+func (cf *CategoricalFeature) Sort() {
+	cf.orderIndex = make(intAttributeIndexSlice, 0)
+	for i, v := range cf.values {
+		cf.orderIndex = append(cf.orderIndex, intAttributeIndex{v, i})
+	}
+	sort.Sort(cf.orderIndex)
+}
+
+func (cf *CategoricalFeature) InOrder(index int) int {
+	return cf.orderIndex[index].index
+}
 
 // FeatureFactory
 type FeatureFactory interface {

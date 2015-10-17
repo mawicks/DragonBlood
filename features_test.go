@@ -69,17 +69,17 @@ func TestNumericFeature(t *testing.T) {
 
 func TestCategoricalFeature(t *testing.T) {
 	// Assign to Feature to ensure CategoricalFeature implements Feature
-	var nf db.Feature = db.NewCategoricalFeature("foo", db.NewStringTable())
+	var cf db.OrderedFeature = db.NewCategoricalFeature("foo", db.NewStringTable())
 
-	testStrings := []string{"alpha", "beta", "delta"}
+	testStrings := []string{"alpha", "beta", "delta", "beta", "alpha"}
 
 	for _, s := range testStrings {
-		nf.AddFromString(s)
+		cf.AddFromString(s)
 	}
 
 	check := func(index int, expected string) {
-		actual := nf.Value(index).(string)
-		altActual := nf.Decode(nf.NumericValue(index)).(string)
+		actual := cf.Value(index).(string)
+		altActual := cf.Decode(cf.NumericValue(index)).(string)
 		if actual != altActual {
 			t.Errorf("Value(%d) returned %v; Decode(NumericValue(%d) returned %v", index, actual, index, altActual)
 		}
@@ -92,11 +92,27 @@ func TestCategoricalFeature(t *testing.T) {
 		check(i, s)
 	}
 
-	if nf.Len() != len(testStrings) {
-		t.Errorf("Length() returned %d; expecting %d", nf.Len(), 5)
+	if cf.Len() != len(testStrings) {
+		t.Errorf("Length() returned %d; expecting %d", cf.Len(), 5)
 	}
 
-	if nf.Name() != "foo" {
+	if cf.Name() != "foo" {
 		t.Errorf(`Name() failed to return "foo"`)
 	}
+
+	ordercheck := func(index int, expected string) {
+		orderedString := cf.Decode(cf.NumericValue(cf.InOrder(index)))
+		if orderedString != expected {
+			t.Errorf("Get(%d) got %s; expecting %s", index, orderedString, expected)
+		}
+	}
+
+	cf.Sort()
+
+	ordercheck(0, "alpha")
+	ordercheck(1, "alpha")
+	ordercheck(2, "beta")
+	ordercheck(3, "beta")
+	ordercheck(4, "delta")
+
 }
