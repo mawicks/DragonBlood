@@ -198,7 +198,7 @@ func dtOptimalSplit(
 	for i := len(nodeMembership) - 1; i >= 0; i-- {
 		iOrdered := f.InOrder(i)
 		if nm := nodeMembership[iOrdered]; nm >= 0 {
-			for j := 0; j < bag[iOrdered]; j++ {
+			for j := 0; j < bag.Count(iOrdered); j++ {
 				accumulators[nm].Add(target.NumericValue(iOrdered))
 			}
 		}
@@ -208,7 +208,7 @@ func dtOptimalSplit(
 	for i, _ := range nodeMembership {
 		iOrdered := f.InOrder(i)
 		if nm := nodeMembership[iOrdered]; nm >= 0 {
-			for j := 0; j < bag[iOrdered]; j++ {
+			for j := 0; j < bag.Count(iOrdered); j++ {
 				accumulators[nm].Move(f.NumericValue(iOrdered), target.NumericValue(iOrdered))
 			}
 		}
@@ -235,11 +235,11 @@ type DecisionTree struct {
 func dtInitialize(target DecisionTreeTarget, bag Bag) ([]*DecisionTreeNode, []int) {
 	node := &DecisionTreeNode{feature: -1}
 
-	splittableNodeMembership := make([]int, len(bag))
+	splittableNodeMembership := make([]int, bag.Len())
 	acc := stats.NewSSEAccumulator()
-	for i, b := range bag {
+	for i := 0; i < bag.Len(); i++ {
 		splittableNodeMembership[i] = 0 // Root node
-		for j := 0; j < b; j++ {
+		for j := 0; j < bag.Count(i); j++ {
 			acc.Add(target.NumericValue(i))
 		}
 	}
@@ -314,7 +314,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 
 type SplitPair struct{ left, right int }
 
-func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
+func (dt *DecisionTree) GrowBag(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
 	maxFeatures := dt.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -360,7 +360,7 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 					}
 				} else { // No split exists --- this record has reached a leaf node.
 					splittableNodeMembership[i] = -1 // An impossible node reference
-					if bag[i] > 0 {
+					if bag.Count(i) > 0 {
 						// TODO:  Compute OOB scores
 					}
 				}
@@ -371,22 +371,6 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 	root.Dump(os.Stderr, 0, "Root ")
 	return root
 }
-
-// Bag
-type Bag []int
-
-func (b Bag) Resample() {
-	for i, _ := range b {
-		b[i] = 0
-	}
-
-	n := len(b)
-	for i := 0; i < n; i++ {
-		b[rand.Intn(n)] += 1
-	}
-}
-
-func (b Bag) Len() int { return len(b) }
 
 type randomForestNumericFeature struct {
 	*NumericFeature
@@ -405,15 +389,15 @@ func NewDecisionTreeRegressor() *DecisionTreeRegressor {
 }
 
 func (rf *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
-	bag := Bag(make([]int, features[0].Len()))
-	bag.Resample()
-
+	//	bag := NewBag(features[0].Len())
+	bag := FullBag(features[0].Len())
+	log.Printf("bag: %v", bag)
 	for _, f := range features {
 		f.Sort()
 	}
 
 	dt := &DecisionTree{10, 1}
-	dt.Fit(features, target, bag)
+	dt.GrowBag(features, target, bag)
 
 }
 
