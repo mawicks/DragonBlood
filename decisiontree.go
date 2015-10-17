@@ -2,8 +2,11 @@ package DragonBlood
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"math"
 	"math/rand"
+	"os"
 
 	"github.com/mawicks/DragonBlood/stats"
 )
@@ -55,20 +58,20 @@ type DecisionTreeNode struct {
 }
 
 // Dump prints a readable representation of a decision tree
-func (n *DecisionTreeNode) Dump(level int, prefix string) {
+func (n *DecisionTreeNode) Dump(w io.Writer, level int, prefix string) {
 	for i := 0; i < level; i++ {
-		fmt.Print(" ")
+		fmt.Fprint(w, " ")
 	}
-	fmt.Printf("%sprediction: %g", prefix, n.prediction)
+	fmt.Fprintf(w, "%sprediction: %g metric: %g size: %d", prefix, n.prediction, n.metric, n.size)
 	if n.feature < 0 {
-		fmt.Printf(" (LEAF)")
+		fmt.Fprint(w, " (LEAF)")
 	}
-	fmt.Println()
+	fmt.Fprint(w, "\n")
 	if n.Left != nil {
-		n.Left.Dump(level+4, fmt.Sprintf("L feature_%d %s ", n.feature, n.splitter))
+		n.Left.Dump(w, level+4, fmt.Sprintf("L feature_%d %s ", n.feature, n.splitter))
 	}
 	if n.Right != nil {
-		n.Right.Dump(level+4, fmt.Sprintf("R feature_%d not %s ", n.feature, n.splitter))
+		n.Right.Dump(w, level+4, fmt.Sprintf("R feature_%d not %s ", n.feature, n.splitter))
 	}
 }
 
@@ -87,9 +90,9 @@ type FeatureSplitInfo struct {
 
 func (fsi *FeatureSplitInfo) Dump() {
 	if fsi != nil {
-		fmt.Printf("\tfeature %v: %+v\n", fsi.feature, fsi.SplitInfo)
+		log.Printf("\tfeature %v: %+v\n", fsi.feature, fsi.SplitInfo)
 	} else {
-		fmt.Printf("\tnil\n")
+		log.Printf("\tnil\n")
 	}
 }
 
@@ -129,7 +132,7 @@ func (a *MSEAccumulator) Add(targetValue float64) {
 func (a *MSEAccumulator) Move(featureValue, targetValue float64) {
 	if featureValue != a.previousFeatureValue { // End of a run of identical values
 		metric := (a.left.Value() + a.right.Value()) / float64(a.count)
-		if metric < a.bestMetric {
+		if metric < a.bestMetric && a.left.Count() >= a.minLeafSize && a.right.Count() >= a.minLeafSize {
 			a.bestMetric = metric
 			a.bestSplitValue = 0.5 * (featureValue + a.previousFeatureValue)
 
@@ -241,8 +244,7 @@ func dtInitialize(target DecisionTreeTarget, bag Bag) ([]*DecisionTreeNode, []in
 		}
 	}
 
-	node.prediction = acc.Mean()
-	node.metric = acc.MSE()
+	node.Metric = Metric{size: acc.Count(), prediction: acc.Mean(), metric: acc.MSE()}
 
 	// nextSplittableNodes is next generation of splittableNodes.
 	// It is initialized here (and re-generated during each
@@ -266,7 +268,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 	nodeSplits := make([]*SplitPair, 0, len(splittableNodes))
 
 	improvingSplits := make([]*FeatureSplitInfo, 0, len(candidateSplitsByFeature))
-	fmt.Println("\nSelected feature/split by eligible node: ")
+	log.Print("Selected feature/split by eligible node: ")
 	for inode, node := range splittableNodes {
 		// For this node, build list of feature splits
 		// that reduce the metric
@@ -327,12 +329,12 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 
 	var nextSplittableNodes []*DecisionTreeNode
 	for splittableNodes := initialSplittableNodes; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
-		fmt.Printf("\n\n*** New Iteration ***\nsplittableNodeMembership: %v\n", splittableNodeMembership)
+		log.Printf("*** New Iteration ***:  splittableNodeMembership: %v", splittableNodeMembership)
 
 		// For each feature find all optimal splits for that feature for each splittable node
 		for i, feature := range features {
 			candidateSplitsByFeature[i] = make([]*FeatureSplitInfo, 0, len(splittableNodes))
-			fmt.Printf("Best splits by node, feature %d:\n", i)
+			log.Printf("Best splits by node, feature %d:\n", i)
 			for _, dtos := range dtOptimalSplit(feature, target, splittableNodeMembership, len(splittableNodes), bag, dt.MinLeafSize) {
 				var split *FeatureSplitInfo
 				if dtos != nil {
@@ -365,9 +367,8 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 			}
 		}
 	}
-	fmt.Printf("\nTree Dump:\n")
-	root.Dump(0, "Root ")
-	fmt.Printf("\n\n")
+	log.Print("Tree Dump:")
+	root.Dump(os.Stderr, 0, "Root ")
 	return root
 }
 

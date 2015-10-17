@@ -82,6 +82,5 @@ func TestCSVHandler(t *testing.T) {
 			//			fmt.Printf("%v ", df.Get(i, j))
 			df.Get(i, j)
 		}
-		fmt.Printf("\n")
 	}
 }
