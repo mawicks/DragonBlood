@@ -6,24 +6,41 @@ import (
 	"strconv"
 )
 
+// Because Go type assertions are inefficient, all
+// features types can present values as float64 via NumericValue().
+// For categorical values, this would be an integer (represented as a float64) corresponding to the value.
+// A float64 can represent all int32 values exactly.
+// The value returned by NumericValue() is invertable via Decode() so that
+// Decode(NumericValue(i)) == Value(i).
+// NumericValue(i) and Value(i) must retrieve values
+// in the order in which they were added, where the order is represented by i.
 type Feature interface {
 	Len() int
 	Add(...interface{})
 	AddFromString(...string)
 	Name() string
 
-	// Because Go type assertions are inefficient, all
-	// features types can present values as float64.
-	// For categorical valvues, this would be an integer representing the value.
-	// Float64 can represent all int32 values exactly.
-	// This is invertable via Unmap() so that
-	// Decode(NumericValue(i)) == Value(i)
 	NumericValue(int) float64
 	Decode(float64) interface{}
 
 	Value(int) interface{}
 }
 
+// OrderedFeature is an interface for processing a list of feature
+// values in a particular order.  The implementation should ensure that the
+// following code will process the values in their intended order:
+//    feature.Sort()
+//    for i:=0; i<len(feature); i++ {
+//       doSomething(feature.Value(InOrder(i)))
+//    }
+// The order is unspecified other than that identical
+// values of Value() appear consecutively in the sequence.
+// In other words:
+//    if feature.Value(InOrder(i)) == feature.Value(InOrder(j))
+//    then feature.Value(InOrder(k)) == feature.Value(InOrder(i)) for all i <= k <= j
+// Calling Sort() should affect only the value of InOrder(i); it
+// should have no effect on the value of NumericValue(i) and Value(i)
+// for any i
 type OrderedFeature interface {
 	Feature
 	Sort()
@@ -179,25 +196,28 @@ func (cf *CategoricalFeature) InOrder(index int) int {
 	return cf.orderIndex[index].index
 }
 
-// FeatureFactory
+// Deprecated
 type FeatureFactory interface {
 	New(name string) Feature
 }
 
-// Type: NumericFeatureFactory
+// Deprecated
 type NumericFeatureFactory struct{}
 
-func NewNumericFeatureFactory() FeatureFactory { return NumericFeatureFactory{} }
+// func NewNumericFeatureFactory() FeatureFactory { return NumericFeatureFactory{} }
 
+// Deprecated
 func (NumericFeatureFactory) New(name string) Feature {
 	return NewNumericFeature(name)
 }
 
-// Type: CategoricalFeatureFactory
+// Deprecated
 type CategoricalFeatureFactory struct{}
 
+// Deprecated
 func NewCategoricalFeatureFactory() FeatureFactory { return CategoricalFeatureFactory{} }
 
+// Deprecated
 func (CategoricalFeatureFactory) New(name string) Feature {
 	return NewCategoricalFeature(name, NewStringTable())
 }

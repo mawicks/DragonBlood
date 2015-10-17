@@ -1,11 +1,14 @@
 package DragonBlood
 
+// StringTable is a simple encoding interface.
+// Encode() maps a string to an integer and returns ok if the string was
+// already in the table.  If the string was not previous known,
+// Encode() still returns an integer, but returns ok == false.
+// Decode(int) returns the string that maps to the passed int.
+// Implementations should guarantee that Decode(Encode(string)) == string
 type StringTable interface {
-	// Map string to an integer and return ok if the string was
-	// already in the table.
 	Encode(string) (result int, ok bool)
 
-	// Return the string that maps to the passed int.
 	Decode(int) string
 }
 

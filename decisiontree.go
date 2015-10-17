@@ -181,6 +181,10 @@ func dtOptimalSplit(
 	bag Bag,
 	minSize int) []*SplitInfo {
 
+	if minSize <= 0 {
+		minSize = 1
+	}
+
 	accumulators := make([]*MSEAccumulator, nodeCount)
 	for i, _ := range accumulators {
 		accumulators[i] = NewMSEAccumulator(minSize)
@@ -221,8 +225,8 @@ func dtOptimalSplit(
 }
 
 type DecisionTree struct {
-	maxFeatures int
-	minLeafSize int
+	MaxFeatures int
+	MinLeafSize int
 }
 
 func dtInitialize(target DecisionTreeTarget, bag Bag) ([]*DecisionTreeNode, []int) {
@@ -309,8 +313,8 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 type SplitPair struct{ left, right int }
 
 func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
-	maxFeatures := dt.maxFeatures
-	if maxFeatures > len(features) {
+	maxFeatures := dt.MaxFeatures
+	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
 	}
 
@@ -329,7 +333,7 @@ func (dt *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeT
 		for i, feature := range features {
 			candidateSplitsByFeature[i] = make([]*FeatureSplitInfo, 0, len(splittableNodes))
 			fmt.Printf("Best splits by node, feature %d:\n", i)
-			for _, dtos := range dtOptimalSplit(feature, target, splittableNodeMembership, len(splittableNodes), bag, dt.minLeafSize) {
+			for _, dtos := range dtOptimalSplit(feature, target, splittableNodeMembership, len(splittableNodes), bag, dt.MinLeafSize) {
 				var split *FeatureSplitInfo
 				if dtos != nil {
 					split = &FeatureSplitInfo{i, dtos}
