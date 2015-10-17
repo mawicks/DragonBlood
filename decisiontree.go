@@ -102,13 +102,8 @@ type MSEAccumulator struct {
 	bestMetric     float64
 	bestSplitValue float64
 
-	bestLeftSize       int
-	bestLeftMetric     float64
-	bestLeftPrediction float64
-
-	bestRightSize       int
-	bestRightMetric     float64
-	bestRightPrediction float64
+	bestLeft  Metric
+	bestRight Metric
 }
 
 func NewMSEAccumulator(minLeafSize int) *MSEAccumulator {
@@ -138,14 +133,14 @@ func (a *MSEAccumulator) Move(featureValue, targetValue float64) {
 			a.bestMetric = metric
 			a.bestSplitValue = 0.5 * (featureValue + a.previousFeatureValue)
 
-			if a.bestLeftSize = a.left.Count(); a.bestLeftSize > 0 {
-				a.bestLeftMetric = a.left.MSE()
-				a.bestLeftPrediction = a.left.Mean()
+			if a.bestLeft.size = a.left.Count(); a.bestLeft.size > 0 {
+				a.bestLeft.metric = a.left.MSE()
+				a.bestLeft.prediction = a.left.Mean()
 			}
 
-			if a.bestRightSize = a.right.Count(); a.bestRightSize > 0 {
-				a.bestRightMetric = a.right.MSE()
-				a.bestRightPrediction = a.right.Mean()
+			if a.bestRight.size = a.right.Count(); a.bestRight.size > 0 {
+				a.bestRight.metric = a.right.MSE()
+				a.bestRight.prediction = a.right.Mean()
 			}
 		}
 		a.previousFeatureValue = featureValue
@@ -162,19 +157,12 @@ func (a *MSEAccumulator) BestSplit() *SplitInfo {
 		panic("BestSplit() called prematurely (fewer Move() calls than Add() calls)")
 	}
 
-	if a.bestLeftSize != 0 && a.bestRightSize != 0 {
+	if a.bestLeft.size != 0 && a.bestRight.size != 0 {
 		result = &SplitInfo{
 			splitter: NumericSplitter(a.bestSplitValue),
 			metric:   a.bestMetric,
-			left: Metric{
-				size:       a.bestLeftSize,
-				prediction: a.bestLeftPrediction,
-				metric:     a.bestLeftMetric,
-			},
-			right: Metric{size: a.bestRightSize,
-				prediction: a.bestRightPrediction,
-				metric:     a.bestRightMetric,
-			},
+			left:     a.bestLeft,
+			right:    a.bestRight,
 		}
 	}
 	return result
