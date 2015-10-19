@@ -314,7 +314,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 
 type SplitPair struct{ left, right int }
 
-func (dt *DecisionTree) GrowBag(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
+func (dt *DecisionTree) Grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
 	maxFeatures := dt.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -372,6 +372,25 @@ func (dt *DecisionTree) GrowBag(features []DecisionTreeFeature, target DecisionT
 	return root
 }
 
+func (dt *DecisionTreeNode) Predict(features []Feature) []float64 {
+	var result []float64
+	if len(features) > 0 {
+		result = make([]float64, features[0].Len())
+		for i := range result {
+			node := dt
+			for node.feature >= 0 {
+				if node.splitter.Split(features[node.feature].NumericValue(i)) {
+					node = node.Left
+				} else {
+					node = node.Right
+				}
+			}
+			result[i] = node.prediction
+		}
+	}
+	return result
+}
+
 type randomForestNumericFeature struct {
 	*NumericFeature
 }
@@ -382,13 +401,15 @@ func NewDecisionTreeNumericFeature(f *NumericFeature) DecisionTreeFeature {
 	}
 }
 
-type DecisionTreeRegressor struct{}
+type DecisionTreeRegressor struct {
+	root *DecisionTreeNode
+}
 
 func NewDecisionTreeRegressor() *DecisionTreeRegressor {
 	return &DecisionTreeRegressor{}
 }
 
-func (rf *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
+func (dtr *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
 	//	bag := NewBag(features[0].Len())
 	bag := FullBag(features[0].Len())
 	log.Printf("bag: %v", bag)
@@ -396,11 +417,14 @@ func (rf *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target Deci
 		f.Sort()
 	}
 
-	dt := &DecisionTree{10, 1}
-	dt.GrowBag(features, target, bag)
-
+	dt := &DecisionTree{MaxFeatures: 10, MinLeafSize: 1}
+	dtr.root = dt.Grow(features, target, bag)
 }
 
-func (rf *DecisionTreeRegressor) Predict(features []Feature) []float64 {
-	return make([]float64, 0)
+func (dtr *DecisionTreeRegressor) Predict(features []Feature) []float64 {
+	var result []float64
+	if dtr.root != nil {
+		result = dtr.root.Predict(features)
+	}
+	return result
 }

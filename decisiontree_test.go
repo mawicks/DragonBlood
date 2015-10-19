@@ -30,7 +30,7 @@ func TestDecisionTree(test *testing.T) {
 	tEstimate := rf.Predict([]db.Feature{x, y, z})
 
 	if len(tEstimate) != t.Len() {
-		//		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
+		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
 	}
 
 	for i, te := range tEstimate {
