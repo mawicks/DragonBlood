@@ -332,7 +332,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 
 type SplitPair struct{ left, right int }
 
-func (dtg *decisionTreeGrower) grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
+func (dtg *decisionTreeGrower) grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag, oobPrediction []stats.Accumulator) *DecisionTreeNode {
 	maxFeatures := dtg.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -378,8 +378,8 @@ func (dtg *decisionTreeGrower) grow(features []DecisionTreeFeature, target Decis
 					}
 				} else { // No split exists --- this record has reached a leaf node.
 					splittableNodeMembership[i] = -1 // An impossible node reference
-					if bag.Count(i) > 0 {
-						// TODO:  Compute OOB scores
+					if oobPrediction != nil && bag.Count(i) == 0 {
+						oobPrediction[i].Add(splittableNode.prediction)
 					}
 				}
 			}
@@ -446,7 +446,7 @@ func (dtr *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTree
 	bag := FullBag(features[0].Len())
 	log.Printf("bag: %v", bag)
 
-	dtr.root = dtr.grower.grow(features, target, bag)
+	dtr.root = dtr.grower.grow(features, target, bag, nil)
 
 	dtr.nFeatures = len(features)
 

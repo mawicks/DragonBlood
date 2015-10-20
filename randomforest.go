@@ -3,6 +3,8 @@ package DragonBlood
 import (
 	"fmt"
 	"log"
+
+	"github.com/mawicks/DragonBlood/stats"
 )
 
 type RandomForestRegressor struct {
@@ -21,8 +23,13 @@ func NewRandomForestRegressor(nTrees int) *RandomForestRegressor {
 	}
 }
 
-func (rf *RandomForestRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
+func (rf *RandomForestRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) []float64 {
 	rf.nFeatures = len(features)
+
+	oobPrediction := make([]stats.Accumulator, features[0].Len())
+	for i := range oobPrediction {
+		oobPrediction[i] = stats.NewMeanAccumulator()
+	}
 
 	for _, f := range features {
 		f.Sort()
@@ -32,8 +39,15 @@ func (rf *RandomForestRegressor) Fit(features []DecisionTreeFeature, target Deci
 		bag := NewBag(features[0].Len())
 		log.Printf("bag: %v", bag)
 
-		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag))
+		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag, oobPrediction))
 	}
+
+	result := make([]float64, len(oobPrediction))
+	for i, p := range oobPrediction {
+		result[i] = p.Value()
+	}
+
+	return result
 }
 
 func (rf *RandomForestRegressor) Predict(features []Feature) []float64 {

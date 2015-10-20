@@ -26,14 +26,16 @@ func TestRandomForest(test *testing.T) {
 		rfFeatures = append(rfFeatures, db.NewDecisionTreeNumericFeature(f))
 	}
 
-	rf := db.NewRandomForestRegressor(100)
-	rf.Fit(rfFeatures, t)
+	rf := db.NewRandomForestRegressor(1000)
+	oob := rf.Fit(rfFeatures, t)
 
 	tEstimate := rf.Predict([]db.Feature{x, y, z})
 
 	if len(tEstimate) != t.Len() {
 		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
 	}
+
+	fmt.Printf("oob preds: %v\n", oob)
 
 	for i, te := range tEstimate {
 		fmt.Printf("predicted: %v; actual: %v\n", te, t.Value(i))
