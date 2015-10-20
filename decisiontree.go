@@ -42,11 +42,6 @@ type Metric struct {
 	prediction float64
 }
 
-type DecisionTree struct {
-	root      *DecisionTreeNode
-	nFeatures int
-}
-
 // DecisionTreeNodetype describes an arbitrary node in a decision tree.
 type DecisionTreeNode struct {
 	Metric
@@ -64,24 +59,12 @@ type DecisionTreeNode struct {
 	splitter Splitter
 }
 
-func (tree *DecisionTree) Importances() []float64 {
-	result := make([]float64, tree.nFeatures)
-	tree.root.Importances(result)
-	return result
-}
-
 func (n *DecisionTreeNode) Importances(importances []float64) {
 	if n.feature >= 0 {
 		importances[n.feature] += n.reduction
 		n.Left.Importances(importances)
 		n.Right.Importances(importances)
 	}
-}
-
-// Dump prints a readable representation of a decision tree
-func (t *DecisionTree) Dump(w io.Writer) {
-	fmt.Fprintf(w, "Trained with %d features\n", t.nFeatures)
-	t.root.Dump(w, 0, "Root ")
 }
 
 // Dump prints a readable representation of a decision tree
@@ -349,7 +332,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 
 type SplitPair struct{ left, right int }
 
-func (dtg *DecisionTreeGrower) Grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTree {
+func (dtg *DecisionTreeGrower) Grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
 	maxFeatures := dtg.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -402,18 +385,15 @@ func (dtg *DecisionTreeGrower) Grow(features []DecisionTreeFeature, target Decis
 			}
 		}
 	}
-	result := DecisionTree{root, len(features)}
-	log.Print("Tree Dump:")
-	result.Dump(os.Stderr)
-	return &result
+	return root
 }
 
-func (dtg *DecisionTree) Predict(features []Feature) []float64 {
+func (dtg *DecisionTreeNode) Predict(features []Feature) []float64 {
 	var result []float64
 	if len(features) > 0 {
 		result = make([]float64, features[0].Len())
 		for i := range result {
-			node := dtg.root
+			node := dtg
 			for node.feature >= 0 {
 				if node.splitter.Split(features[node.feature].NumericValue(i)) {
 					node = node.Left
@@ -427,29 +407,33 @@ func (dtg *DecisionTree) Predict(features []Feature) []float64 {
 	return result
 }
 
-type randomForestNumericFeature struct {
+type dtNumericFeature struct {
 	*NumericFeature
 }
 
 func NewDecisionTreeNumericFeature(f *NumericFeature) DecisionTreeFeature {
-	return &randomForestNumericFeature{
+	return &dtNumericFeature{
 		f,
 	}
 }
 
-type DecisionTreeRegressor struct {
-	tree *DecisionTree
+type DecisionTree struct {
+	nFeatures int
+	root      *DecisionTreeNode
 }
 
-func NewDecisionTreeRegressor() *DecisionTreeRegressor {
-	return &DecisionTreeRegressor{}
+func NewDecisionTreeRegressor() *DecisionTree {
+	return &DecisionTree{}
 }
 
-func (dtr *DecisionTreeRegressor) Importances() []float64 {
-	return dtr.tree.Importances()
+func (dtr *DecisionTree) Importances() []float64 {
+	fmt.Printf("Importances(): nFeatures: %d", dtr.nFeatures)
+	importances := make([]float64, dtr.nFeatures)
+	dtr.root.Importances(importances)
+	return importances
 }
 
-func (dtr *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
+func (dtr *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
 	for _, f := range features {
 		f.Sort()
 	}
@@ -458,13 +442,24 @@ func (dtr *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target Dec
 	log.Printf("bag: %v", bag)
 
 	dtg := &DecisionTreeGrower{MaxFeatures: 10, MinLeafSize: 1}
-	dtr.tree = dtg.Grow(features, target, bag)
+	dtr.root = dtg.Grow(features, target, bag)
+
+	dtr.nFeatures = len(features)
+
+	log.Print("Tree Dump:")
+	dtr.Dump(os.Stderr)
 }
 
-func (dtr *DecisionTreeRegressor) Predict(features []Feature) []float64 {
+func (dtr *DecisionTree) Predict(features []Feature) []float64 {
 	var result []float64
-	if dtr.tree != nil {
-		result = dtr.tree.Predict(features)
+	if dtr.root != nil {
+		result = dtr.root.Predict(features)
 	}
 	return result
+}
+
+// Dump prints a readable representation of a decision tree
+func (t *DecisionTree) Dump(w io.Writer) {
+	fmt.Fprintf(w, "Trained with %d features\n", t.nFeatures)
+	t.root.Dump(w, 0, "Root ")
 }

@@ -41,4 +41,6 @@ func TestRandomForest(test *testing.T) {
 		//			test.Errorf("Row %d: predicted %v; actual %v", i, te, t.Value///(i))
 		//		}
 	}
+
+	fmt.Printf("forest importances: %v\n", rf.Importances())
 }

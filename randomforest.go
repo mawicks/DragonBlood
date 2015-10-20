@@ -1,19 +1,23 @@
 package DragonBlood
 
 import (
+	"fmt"
 	"log"
 )
 
 type RandomForestRegressor struct {
-	nTrees int
-	trees  []*DecisionTree
+	nTrees    int
+	trees     []*DecisionTreeNode
+	nFeatures int
 }
 
 func NewRandomForestRegressor(nTrees int) *RandomForestRegressor {
-	return &RandomForestRegressor{nTrees, make([]*DecisionTree, 0, nTrees)}
+	return &RandomForestRegressor{nTrees, make([]*DecisionTreeNode, 0, nTrees), 0}
 }
 
 func (rf *RandomForestRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
+	rf.nFeatures = len(features)
+
 	for _, f := range features {
 		f.Sort()
 	}
@@ -40,4 +44,25 @@ func (rf *RandomForestRegressor) Predict(features []Feature) []float64 {
 	}
 
 	return result
+}
+
+func (rf *RandomForestRegressor) Importances() []float64 {
+	fmt.Printf("Importances(): nFeatures: %d\n", rf.nFeatures)
+
+	forestImportances := make([]float64, rf.nFeatures)
+	treeImportances := make([]float64, rf.nFeatures)
+
+	for i, tree := range rf.trees {
+		if tree != nil {
+			for j := range treeImportances {
+				treeImportances[j] = 0.0
+			}
+
+			tree.Importances(treeImportances)
+			for j, imp := range treeImportances {
+				forestImportances[j] += (imp - forestImportances[j]) / float64(i+1)
+			}
+		}
+	}
+	return forestImportances
 }
