@@ -6,11 +6,11 @@ import (
 
 type RandomForestRegressor struct {
 	nTrees int
-	trees  []*DecisionTreeNode
+	trees  []*DecisionTree
 }
 
 func NewRandomForestRegressor(nTrees int) *RandomForestRegressor {
-	return &RandomForestRegressor{nTrees, make([]*DecisionTreeNode, 0, nTrees)}
+	return &RandomForestRegressor{nTrees, make([]*DecisionTree, 0, nTrees)}
 }
 
 func (rf *RandomForestRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {

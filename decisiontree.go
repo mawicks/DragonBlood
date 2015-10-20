@@ -42,6 +42,11 @@ type Metric struct {
 	prediction float64
 }
 
+type DecisionTree struct {
+	root      *DecisionTreeNode
+	nFeatures int
+}
+
 // DecisionTreeNodetype describes an arbitrary node in a decision tree.
 type DecisionTreeNode struct {
 	Metric
@@ -57,6 +62,26 @@ type DecisionTreeNode struct {
 
 	// Splitter to use on above feature if feature>= 0 else nil.
 	splitter Splitter
+}
+
+func (tree *DecisionTree) Importances() []float64 {
+	result := make([]float64, tree.nFeatures)
+	tree.root.Importances(result)
+	return result
+}
+
+func (n *DecisionTreeNode) Importances(importances []float64) {
+	if n.feature >= 0 {
+		importances[n.feature] += n.reduction
+		n.Left.Importances(importances)
+		n.Right.Importances(importances)
+	}
+}
+
+// Dump prints a readable representation of a decision tree
+func (t *DecisionTree) Dump(w io.Writer) {
+	fmt.Fprintf(w, "Trained with %d features\n", t.nFeatures)
+	t.root.Dump(w, 0, "Root ")
 }
 
 // Dump prints a readable representation of a decision tree
@@ -324,7 +349,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 
 type SplitPair struct{ left, right int }
 
-func (dtg *DecisionTreeGrower) Grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
+func (dtg *DecisionTreeGrower) Grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTree {
 	maxFeatures := dtg.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -377,17 +402,18 @@ func (dtg *DecisionTreeGrower) Grow(features []DecisionTreeFeature, target Decis
 			}
 		}
 	}
+	result := DecisionTree{root, len(features)}
 	log.Print("Tree Dump:")
-	root.Dump(os.Stderr, 0, "Root ")
-	return root
+	result.Dump(os.Stderr)
+	return &result
 }
 
-func (dtg *DecisionTreeNode) Predict(features []Feature) []float64 {
+func (dtg *DecisionTree) Predict(features []Feature) []float64 {
 	var result []float64
 	if len(features) > 0 {
 		result = make([]float64, features[0].Len())
 		for i := range result {
-			node := dtg
+			node := dtg.root
 			for node.feature >= 0 {
 				if node.splitter.Split(features[node.feature].NumericValue(i)) {
 					node = node.Left
@@ -412,11 +438,15 @@ func NewDecisionTreeNumericFeature(f *NumericFeature) DecisionTreeFeature {
 }
 
 type DecisionTreeRegressor struct {
-	root *DecisionTreeNode
+	tree *DecisionTree
 }
 
 func NewDecisionTreeRegressor() *DecisionTreeRegressor {
 	return &DecisionTreeRegressor{}
+}
+
+func (dtr *DecisionTreeRegressor) Importances() []float64 {
+	return dtr.tree.Importances()
 }
 
 func (dtr *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
@@ -428,13 +458,13 @@ func (dtr *DecisionTreeRegressor) Fit(features []DecisionTreeFeature, target Dec
 	log.Printf("bag: %v", bag)
 
 	dtg := &DecisionTreeGrower{MaxFeatures: 10, MinLeafSize: 1}
-	dtr.root = dtg.Grow(features, target, bag)
+	dtr.tree = dtg.Grow(features, target, bag)
 }
 
 func (dtr *DecisionTreeRegressor) Predict(features []Feature) []float64 {
 	var result []float64
-	if dtr.root != nil {
-		result = dtr.root.Predict(features)
+	if dtr.tree != nil {
+		result = dtr.tree.Predict(features)
 	}
 	return result
 }

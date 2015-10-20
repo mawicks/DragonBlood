@@ -1,6 +1,7 @@
 package DragonBlood_test
 
 import (
+	"fmt"
 	"testing"
 
 	db "github.com/mawicks/DragonBlood"
@@ -19,18 +20,18 @@ func TestDecisionTree(test *testing.T) {
 	t := db.NewNumericFeature("t")
 	t.Add(3, 0, 3, 1, 7, 6, 5, -1)
 
-	rfFeatures := make([]db.DecisionTreeFeature, 0)
+	dtFeatures := make([]db.DecisionTreeFeature, 0)
 	for _, f := range []*db.NumericFeature{x, y, z} {
-		rfFeatures = append(rfFeatures, db.NewDecisionTreeNumericFeature(f))
+		dtFeatures = append(dtFeatures, db.NewDecisionTreeNumericFeature(f))
 	}
 
-	rf := db.NewDecisionTreeRegressor()
-	rf.Fit(rfFeatures, t)
+	dt := db.NewDecisionTreeRegressor()
+	dt.Fit(dtFeatures, t)
 
-	tEstimate := rf.Predict([]db.Feature{x, y, z})
+	tEstimate := dt.Predict([]db.Feature{x, y, z})
 
 	if len(tEstimate) != t.Len() {
-		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
+		test.Errorf("dt.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
 	}
 
 	for i, te := range tEstimate {
@@ -38,4 +39,6 @@ func TestDecisionTree(test *testing.T) {
 			test.Errorf("Row %d: predicted %v; actual %v", i, te, t.Value(i))
 		}
 	}
+
+	fmt.Printf("%v\n", dt.Importances())
 }
