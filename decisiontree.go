@@ -131,7 +131,7 @@ func (a *MSEAccumulator) Add(targetValue float64) {
 // attribute value from the right set to left set.
 func (a *MSEAccumulator) Move(featureValue, targetValue float64) {
 	if featureValue != a.previousFeatureValue { // End of a run of identical values
-		metric := (a.left.Value() + a.right.Value()) / float64(a.count)
+		metric := (a.left.Value() + a.right.Value())
 		if metric < a.bestMetric && a.left.Count() >= a.minLeafSize && a.right.Count() >= a.minLeafSize {
 			a.bestMetric = metric
 			a.bestSplitValue = 0.5 * (featureValue + a.previousFeatureValue)
