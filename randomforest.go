@@ -9,10 +9,16 @@ type RandomForestRegressor struct {
 	nTrees    int
 	trees     []*DecisionTreeNode
 	nFeatures int
+	grower    *decisionTreeGrower
 }
 
 func NewRandomForestRegressor(nTrees int) *RandomForestRegressor {
-	return &RandomForestRegressor{nTrees, make([]*DecisionTreeNode, 0, nTrees), 0}
+	return &RandomForestRegressor{
+		nTrees,
+		make([]*DecisionTreeNode, 0, nTrees),
+		0,
+		&decisionTreeGrower{MaxFeatures: 10, MinLeafSize: 1},
+	}
 }
 
 func (rf *RandomForestRegressor) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
@@ -22,13 +28,11 @@ func (rf *RandomForestRegressor) Fit(features []DecisionTreeFeature, target Deci
 		f.Sort()
 	}
 
-	dtg := &DecisionTreeGrower{MaxFeatures: 10, MinLeafSize: 1}
-
 	for i := 0; i < rf.nTrees; i++ {
 		bag := NewBag(features[0].Len())
 		log.Printf("bag: %v", bag)
 
-		rf.trees = append(rf.trees, dtg.Grow(features, target, bag))
+		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag))
 	}
 }
 

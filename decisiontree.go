@@ -244,7 +244,7 @@ func dtOptimalSplit(
 	return result
 }
 
-type DecisionTreeGrower struct {
+type decisionTreeGrower struct {
 	MaxFeatures int
 	MinLeafSize int
 }
@@ -332,7 +332,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 
 type SplitPair struct{ left, right int }
 
-func (dtg *DecisionTreeGrower) Grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
+func (dtg *decisionTreeGrower) grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag) *DecisionTreeNode {
 	maxFeatures := dtg.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -420,10 +420,15 @@ func NewDecisionTreeNumericFeature(f *NumericFeature) DecisionTreeFeature {
 type DecisionTree struct {
 	nFeatures int
 	root      *DecisionTreeNode
+	grower    *decisionTreeGrower
 }
 
 func NewDecisionTreeRegressor() *DecisionTree {
-	return &DecisionTree{}
+	return &DecisionTree{
+		0,
+		nil,
+		&decisionTreeGrower{MaxFeatures: 10, MinLeafSize: 1},
+	}
 }
 
 func (dtr *DecisionTree) Importances() []float64 {
@@ -441,8 +446,7 @@ func (dtr *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTree
 	bag := FullBag(features[0].Len())
 	log.Printf("bag: %v", bag)
 
-	dtg := &DecisionTreeGrower{MaxFeatures: 10, MinLeafSize: 1}
-	dtr.root = dtg.Grow(features, target, bag)
+	dtr.root = dtr.grower.grow(features, target, bag)
 
 	dtr.nFeatures = len(features)
 
