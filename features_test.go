@@ -9,7 +9,7 @@ import (
 
 func TestNumericFeature(t *testing.T) {
 	// Assign to Feature to ensure NumericFeature implements Feature
-	var f db.Feature = db.NewNumericFeature("foo")
+	var f db.Feature = db.NewNumericFeature(nil)
 	// Assign it back so we can use its NumericFeature methods
 	var nf = f.(*db.NumericFeature)
 
@@ -61,15 +61,11 @@ func TestNumericFeature(t *testing.T) {
 	if nf.Len() != 6 {
 		t.Errorf("Len() returned %d; expecting %d", nf.Len(), 5)
 	}
-
-	if nf.Name() != "foo" {
-		t.Errorf(`Name() failed to return "foo"`)
-	}
 }
 
 func TestCategoricalFeature(t *testing.T) {
 	// Assign to Feature to ensure CategoricalFeature implements Feature
-	var cf db.OrderedFeature = db.NewCategoricalFeature("foo", db.NewStringTable())
+	var cf db.OrderedFeature = db.NewCategoricalFeature(db.NewStringTable())
 
 	testStrings := []string{"alpha", "beta", "delta", "beta", "alpha"}
 
@@ -94,10 +90,6 @@ func TestCategoricalFeature(t *testing.T) {
 
 	if cf.Len() != len(testStrings) {
 		t.Errorf("Length() returned %d; expecting %d", cf.Len(), 5)
-	}
-
-	if cf.Name() != "foo" {
-		t.Errorf(`Name() failed to return "foo"`)
 	}
 
 	ordercheck := func(index int, expected string) {
