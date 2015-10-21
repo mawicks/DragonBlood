@@ -12,18 +12,6 @@ import (
 )
 
 // Interfaces
-type DecisionTreeFeature interface {
-	OrderedFeature
-}
-
-type DecisionTreeTarget interface {
-	Feature
-}
-
-type DecisionTreeOrderedFeature interface {
-	Feature
-}
-
 type Splitter interface {
 	Split(float64) bool
 	String() string
@@ -194,8 +182,8 @@ func (a *MSEAccumulator) BestSplit() *SplitInfo {
 // bag maps each unit to the number of times that unit occurs in the current bag.
 // minSize is the minimum size for a leaf node.
 func dtOptimalSplit(
-	f DecisionTreeFeature,
-	target DecisionTreeTarget,
+	f OrderedFeature,
+	target Feature,
 	nodeMembership []int,
 	nodeCount int,
 	bag Bag,
@@ -249,7 +237,7 @@ type decisionTreeGrower struct {
 	MinLeafSize int
 }
 
-func dtInitialize(target DecisionTreeTarget, bag Bag) ([]*DecisionTreeNode, []int) {
+func dtInitialize(target Feature, bag Bag) ([]*DecisionTreeNode, []int) {
 	node := &DecisionTreeNode{feature: -1}
 
 	splittableNodeMembership := make([]int, bag.Len())
@@ -332,7 +320,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 
 type SplitPair struct{ left, right int }
 
-func (dtg *decisionTreeGrower) grow(features []DecisionTreeFeature, target DecisionTreeTarget, bag Bag, oobPrediction []stats.Accumulator) *DecisionTreeNode {
+func (dtg *decisionTreeGrower) grow(features []OrderedFeature, target Feature, bag Bag, oobPrediction []stats.Accumulator) *DecisionTreeNode {
 	maxFeatures := dtg.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -411,7 +399,7 @@ type dtNumericFeature struct {
 	*NumericFeature
 }
 
-func NewDecisionTreeNumericFeature(f *NumericFeature) DecisionTreeFeature {
+func NewDecisionTreeNumericFeature(f *NumericFeature) OrderedFeature {
 	return &dtNumericFeature{
 		f,
 	}
@@ -438,7 +426,7 @@ func (dtr *DecisionTree) Importances() []float64 {
 	return importances
 }
 
-func (dtr *DecisionTree) Fit(features []DecisionTreeFeature, target DecisionTreeTarget) {
+func (dtr *DecisionTree) Fit(features []OrderedFeature, target Feature) {
 	for _, f := range features {
 		f.Sort()
 	}

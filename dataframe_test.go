@@ -21,7 +21,7 @@ func TestDataFrame(t *testing.T) {
 
 	nf := db.NewDataFrame()
 	for i := 0; i < 4; i++ {
-		nf.AddFeature(db.NewNumericFeature(names[i]))
+		nf.AddFeature(db.NewDataFrameFeature(names[i], db.NewNumericFeature(nil)))
 	}
 
 	if nf.Length() != 0 {
@@ -57,13 +57,15 @@ func TestDataFrame(t *testing.T) {
 	}
 }
 
-func featureFactory(s string) db.Feature {
+func featureFactory(s string) db.DataFrameFeature {
+	var feature db.Feature
 	switch s[0] {
 	case 'C':
-		return db.NewCategoricalFeature(s, db.NewStringTable())
+		feature = db.NewCategoricalFeature(db.NewStringTable())
 	default:
-		return db.NewNumericFeature(s)
+		feature = db.NewNumericFeature(nil)
 	}
+	return db.NewDataFrameFeature(s, feature)
 }
 
 func TestCSVHandler(t *testing.T) {

@@ -2,20 +2,38 @@ package DragonBlood
 
 import "fmt"
 
+type DataFrameFeature interface {
+	Feature
+	Name() string
+}
+
+type dataFrameFeature struct {
+	Feature
+	name string
+}
+
+func (dff *dataFrameFeature) Name() string {
+	return dff.name
+}
+
+func NewDataFrameFeature(name string, feature Feature) *dataFrameFeature {
+	return &dataFrameFeature{feature, name}
+}
+
 type DataFrame struct {
-	feature   []Feature
+	feature   []DataFrameFeature
 	columnMap map[string]int
 	length    int
 }
 
 func NewDataFrame() *DataFrame {
-	return &DataFrame{make([]Feature, 0),
+	return &DataFrame{make([]DataFrameFeature, 0),
 		make(map[string]int),
 		0,
 	}
 }
 
-func (df *DataFrame) AddFeature(feature Feature) {
+func (df *DataFrame) AddFeature(feature DataFrameFeature) {
 	featureLength := feature.Len()
 	if df.length == 0 || featureLength == df.length {
 		df.columnMap[feature.Name()] = len(df.feature)
@@ -83,7 +101,7 @@ func (df *DataFrame) Get(i, j int) interface{} {
 }
 
 type csvHandler struct {
-	featureFactory func(string) Feature
+	featureFactory func(string) DataFrameFeature
 	df             *DataFrame
 }
 
@@ -102,10 +120,10 @@ func (handler *csvHandler) Finalize()             {}
 func (handler *csvHandler) Abort()                {}
 func (handler *csvHandler) DataFrame() *DataFrame { return handler.df }
 
-func NewCSVHandler(featureFactory func(string) Feature) *csvHandler {
+func NewCSVHandler(featureFactory func(string) DataFrameFeature) *csvHandler {
 	return &csvHandler{featureFactory, NewDataFrame()}
 }
 
-func CSVFileToDataFrame(filename string, featureFactory func(header string) Feature) error {
+func CSVFileToDataFrame(filename string, featureFactory func(header string) DataFrameFeature) error {
 	return ImportFile(filename, NewCSVHandler(featureFactory))
 }

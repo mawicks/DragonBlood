@@ -18,7 +18,6 @@ type Feature interface {
 	Len() int
 	Add(...interface{})
 	AddFromString(...string)
-	Name() string
 
 	NumericValue(int) float64
 	Decode(float64) interface{}
@@ -68,18 +67,18 @@ func (rfp attributeIndexSlice) Less(i, j int) bool {
 	}
 }
 
-// NumericFeature implements Feature
+// NumericFeature implements OrderedFeature (and Feature)
 type NumericFeature struct {
-	name       string
 	values     []float64
 	orderIndex attributeIndexSlice
 }
 
-func NewNumericFeature(name string) *NumericFeature {
-	return &NumericFeature{name, make([]float64, 0), nil}
+func NewNumericFeature(x []float64) *NumericFeature {
+	if x == nil {
+		x = make([]float64, 0)
+	}
+	return &NumericFeature{x, nil}
 }
-
-func (nf *NumericFeature) Name() string { return nf.name }
 
 func (nf *NumericFeature) Add(anyValues ...interface{}) {
 	value := math.NaN()
@@ -136,17 +135,14 @@ type intAttributeIndexSlice []intAttributeIndex
 
 // CategoricalFeature implements Feature
 type CategoricalFeature struct {
-	name        string
 	stringTable StringTable
 	values      []int
 	orderIndex  intAttributeIndexSlice
 }
 
-func NewCategoricalFeature(name string, st StringTable) *CategoricalFeature {
-	return &CategoricalFeature{name, st, make([]int, 0), nil}
+func NewCategoricalFeature(st StringTable) *CategoricalFeature {
+	return &CategoricalFeature{st, make([]int, 0), nil}
 }
-
-func (cf *CategoricalFeature) Name() string { return cf.name }
 
 func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
 	for _, any := range anyValues {
@@ -198,7 +194,7 @@ func (cf *CategoricalFeature) InOrder(index int) int {
 
 // Deprecated
 type FeatureFactory interface {
-	New(name string) Feature
+	New() Feature
 }
 
 // Deprecated
@@ -208,7 +204,7 @@ type NumericFeatureFactory struct{}
 
 // Deprecated
 func (NumericFeatureFactory) New(name string) Feature {
-	return NewNumericFeature(name)
+	return NewNumericFeature(nil)
 }
 
 // Deprecated
@@ -218,6 +214,6 @@ type CategoricalFeatureFactory struct{}
 func NewCategoricalFeatureFactory() FeatureFactory { return CategoricalFeatureFactory{} }
 
 // Deprecated
-func (CategoricalFeatureFactory) New(name string) Feature {
-	return NewCategoricalFeature(name, NewStringTable())
+func (CategoricalFeatureFactory) New() Feature {
+	return NewCategoricalFeature(NewStringTable())
 }

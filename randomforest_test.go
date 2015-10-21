@@ -8,20 +8,20 @@ import (
 )
 
 func TestRandomForest(test *testing.T) {
-	x := db.NewNumericFeature("x0")
+	x := db.NewNumericFeature(nil)
 	x.Add(0, 1, 2, 3, 4, 5, 6, 7)
 
-	y := db.NewNumericFeature("y1")
+	y := db.NewNumericFeature(nil)
 	y.Add(1, 2, 1, 2, 1, 2, 1, 2)
 
-	z := db.NewNumericFeature("z2")
+	z := db.NewNumericFeature(nil)
 	z.Add(1, 1, 1, 1, 2, 2, 2, 2)
 
-	t := db.NewNumericFeature("t")
+	t := db.NewNumericFeature(nil)
 	//	t.Add(3, 0, 3, 1, 7, 6, 5, -1)
 	t.Add(0, 0, 0, 0, 1, 1, 1, 1)
 
-	rfFeatures := make([]db.DecisionTreeFeature, 0)
+	rfFeatures := make([]db.OrderedFeature, 0)
 	for _, f := range []*db.NumericFeature{x, y, z} {
 		rfFeatures = append(rfFeatures, db.NewDecisionTreeNumericFeature(f))
 	}
@@ -44,5 +44,5 @@ func TestRandomForest(test *testing.T) {
 		//		}
 	}
 
-	fmt.Printf("forest importances: %v\n", rf.Importances())
+	fmt.Printf("feature importances (forest): %v\n", rf.Importances())
 }
