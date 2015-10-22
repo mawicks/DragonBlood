@@ -27,7 +27,7 @@ type DataFrame struct {
 }
 
 func NewDataFrame() *DataFrame {
-	return &DataFrame{make([]DataFrameFeature, 0),
+	return &DataFrame{nil,
 		make(map[string]int),
 		0,
 	}

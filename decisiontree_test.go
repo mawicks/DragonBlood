@@ -20,7 +20,7 @@ func TestDecisionTree(test *testing.T) {
 	t := db.NewNumericFeature(nil)
 	t.Add(3, 0, 3, 1, 7, 6, 5, -1)
 
-	dtFeatures := make([]db.OrderedFeature, 0)
+	dtFeatures := []db.OrderedFeature{}
 	for _, f := range []*db.NumericFeature{x, y, z} {
 		dtFeatures = append(dtFeatures, db.NewDecisionTreeNumericFeature(f))
 	}

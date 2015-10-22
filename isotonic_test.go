@@ -13,7 +13,7 @@ func TestIsotonic(test *testing.T) {
 	expectedX := []float64{1.0, 3.0, 7.0}
 	expectedY := []float64{0.5, 0.75, 5.0 / 6.0}
 
-	for i, _ := range x {
+	for i := range x {
 		if x[i] != expectedX[i] {
 			test.Errorf("x[%d] was %g; expected %g", i, x[i], expectedX[i])
 		}
@@ -26,7 +26,7 @@ func TestIsotonic(test *testing.T) {
 		[]float64{12.0, 11.0, 10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0},
 		[]float64{0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0})
 
-	for i, _ := range x {
+	for i := range x {
 		if x[i] != expectedX[i] {
 			test.Errorf("x[%d] was %g; expected %g", i, x[i], expectedX[i])
 		}

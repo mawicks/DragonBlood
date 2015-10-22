@@ -22,7 +22,7 @@ type stringTable struct {
 func NewStringTable() *stringTable {
 	return &stringTable{
 		make(map[string]int),
-		make([]string, 0),
+		nil,
 	}
 }
 

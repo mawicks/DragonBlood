@@ -18,7 +18,7 @@ func NewBag(n int) bag {
 }
 
 func (b bag) Resample() {
-	for i, _ := range b {
+	for i := range b {
 		b[i] = 0
 	}
 

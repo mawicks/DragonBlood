@@ -74,9 +74,6 @@ type NumericFeature struct {
 }
 
 func NewNumericFeature(x []float64) *NumericFeature {
-	if x == nil {
-		x = make([]float64, 0)
-	}
 	return &NumericFeature{x, nil}
 }
 
@@ -115,7 +112,7 @@ func (nf *NumericFeature) Value(index int) interface{}    { return nf.values[ind
 func (nf *NumericFeature) Len() int { return len(nf.values) }
 
 func (nf *NumericFeature) Sort() {
-	nf.orderIndex = make(attributeIndexSlice, 0)
+	nf.orderIndex = nil
 	for i, v := range nf.values {
 		nf.orderIndex = append(nf.orderIndex, attributeIndex{v, i})
 	}
@@ -141,7 +138,7 @@ type CategoricalFeature struct {
 }
 
 func NewCategoricalFeature(st StringTable) *CategoricalFeature {
-	return &CategoricalFeature{st, make([]int, 0), nil}
+	return &CategoricalFeature{st, nil, nil}
 }
 
 func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
@@ -181,7 +178,7 @@ func (ais intAttributeIndexSlice) Len() int           { return len(ais) }
 func (ais intAttributeIndexSlice) Less(i, j int) bool { return ais[i].attribute < ais[j].attribute }
 
 func (cf *CategoricalFeature) Sort() {
-	cf.orderIndex = make(intAttributeIndexSlice, 0)
+	cf.orderIndex = nil
 	for i, v := range cf.values {
 		cf.orderIndex = append(cf.orderIndex, intAttributeIndex{v, i})
 	}

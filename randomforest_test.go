@@ -21,12 +21,12 @@ func TestRandomForest(test *testing.T) {
 	//	t.Add(3, 0, 3, 1, 7, 6, 5, -1)
 	t.Add(0, 0, 0, 0, 1, 1, 1, 1)
 
-	rfFeatures := make([]db.OrderedFeature, 0)
+	rfFeatures := []db.OrderedFeature{}
 	for _, f := range []*db.NumericFeature{x, y, z} {
 		rfFeatures = append(rfFeatures, db.NewDecisionTreeNumericFeature(f))
 	}
 
-	rf := db.NewRandomForestRegressor(1000)
+	rf := db.NewRandomForestRegressor(10)
 	oob := rf.Fit(rfFeatures, t)
 
 	tEstimate := rf.Predict([]db.Feature{x, y, z})

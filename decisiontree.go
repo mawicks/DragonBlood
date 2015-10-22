@@ -194,7 +194,7 @@ func dtOptimalSplit(
 	}
 
 	accumulators := make([]*MSEAccumulator, nodeCount)
-	for i, _ := range accumulators {
+	for i := range accumulators {
 		accumulators[i] = NewMSEAccumulator(minSize)
 	}
 
@@ -210,7 +210,7 @@ func dtOptimalSplit(
 	}
 
 	// Second pass - move points from right to left and evalute new metric
-	for i, _ := range nodeMembership {
+	for i := range nodeMembership {
 		iOrdered := f.InOrder(i)
 		if nm := nodeMembership[iOrdered]; nm >= 0 {
 			for j := 0; j < bag.Count(iOrdered); j++ {
@@ -221,7 +221,7 @@ func dtOptimalSplit(
 
 	// Collect results from accumulators
 	result := make([]*SplitInfo, nodeCount)
-	for i, _ := range result {
+	for i := range result {
 		if bestSplit := accumulators[i].BestSplit(); bestSplit != nil {
 			result[i] = bestSplit
 		} else {
