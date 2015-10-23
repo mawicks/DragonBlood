@@ -1,7 +1,6 @@
 package stats_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/mawicks/DragonBlood/stats"
@@ -53,8 +52,8 @@ func TestSSEAccumulator(test *testing.T) {
 				test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.MSE())
 			}
 		} else {
-			if sse != 0.0 || mean != 0.0 || a.Count() != 0 || a.MSE() != 0.0 {
-				fmt.Printf("Error is %v; mean is %v; count is %v; MSE is %v but all should be zero", sse, mean, a.Count(), a.MSE())
+			if sse != 0.0 || a.Count() != 0 || a.MSE() != 0.0 {
+				test.Errorf("Error is %v; count is %v; MSE is %v but all should be zero", sse, a.Count(), a.MSE())
 			}
 		}
 	}
