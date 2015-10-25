@@ -38,7 +38,7 @@ func (a *VarianceAccumulator) Add(x float64) (sse, mean float64) {
 func (a *VarianceAccumulator) Mean() float64 {
 	return a.sum / float64(a.count)
 }
-func (a *VarianceAccumulator) MSE() float64 {
+func (a *VarianceAccumulator) Variance() float64 {
 	if a.count > 0 {
 		return a.sumSquaredError / float64(a.count)
 	} else {
@@ -74,4 +74,13 @@ func (a *VarianceAccumulator) Reset() {
 	a.sum = 0.0
 	a.sumSquaredError = 0.0
 	a.count = 0
+}
+
+func Variance(sequence []float64) float64 {
+	accumulator := NewVarianceAccumulator()
+	for _, x := range sequence {
+		accumulator.Add(x)
+	}
+
+	return accumulator.Variance()
 }

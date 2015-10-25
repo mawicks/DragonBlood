@@ -6,7 +6,7 @@ import (
 	"github.com/mawicks/DragonBlood/stats"
 )
 
-func TestSSEAccumulator(test *testing.T) {
+func TestVarianceAccumulator(test *testing.T) {
 	a := stats.NewVarianceAccumulator()
 	x := []float64{1.0, 2.0, 0.0, 5.0}
 	mu := []float64{1.0, 1.5, 1.0, 2.0}
@@ -24,8 +24,8 @@ func TestSSEAccumulator(test *testing.T) {
 		if sse != s[i] {
 			test.Errorf("Expected sse of %v; got %v", s[i], sse)
 		}
-		if a.MSE() != s[i]/float64(i+1) {
-			test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.MSE())
+		if a.Variance() != s[i]/float64(i+1) {
+			test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.Variance())
 		}
 		if mean != mu[i] {
 			test.Errorf("Expected mean of %v; got %v", s[i], mean)
@@ -48,13 +48,22 @@ func TestSSEAccumulator(test *testing.T) {
 			if mean != mu[i-1] {
 				test.Errorf("Expected mean of %v; got %v", mu[i-1], a.Value())
 			}
-			if a.MSE() != s[i-1]/float64(i) {
-				test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.MSE())
+			if a.Variance() != s[i-1]/float64(i) {
+				test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.Variance())
 			}
 		} else {
-			if sse != 0.0 || a.Count() != 0 || a.MSE() != 0.0 {
-				test.Errorf("Error is %v; count is %v; MSE is %v but all should be zero", sse, a.Count(), a.MSE())
+			if sse != 0.0 || a.Count() != 0 || a.Variance() != 0.0 {
+				test.Errorf("Error is %v; count is %v; MSE is %v but all should be zero", sse, a.Count(), a.Variance())
 			}
 		}
+	}
+}
+
+func TestVariance(test *testing.T) {
+	x := []float64{1.0, 2.0, 0.0, 5.0}
+	variance := stats.Variance(x)
+	expected := 3.5
+	if variance != expected {
+		test.Errorf("Expected variance of %g; got %g\n", expected, variance)
 	}
 }
