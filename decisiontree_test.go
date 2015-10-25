@@ -22,7 +22,7 @@ func TestDecisionTree(test *testing.T) {
 
 	dtFeatures := []db.OrderedFeature{}
 	for _, f := range []*db.NumericFeature{x, y, z} {
-		dtFeatures = append(dtFeatures, db.NewDecisionTreeNumericFeature(f))
+		dtFeatures = append(dtFeatures, f)
 	}
 
 	dt := db.NewDecisionTreeRegressor()

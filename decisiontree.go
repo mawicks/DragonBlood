@@ -395,16 +395,6 @@ func (dtg *DecisionTreeNode) Predict(features []Feature) []float64 {
 	return result
 }
 
-type dtNumericFeature struct {
-	*NumericFeature
-}
-
-func NewDecisionTreeNumericFeature(f *NumericFeature) OrderedFeature {
-	return &dtNumericFeature{
-		f,
-	}
-}
-
 type DecisionTree struct {
 	nFeatures int
 	root      *DecisionTreeNode

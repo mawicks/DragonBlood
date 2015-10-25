@@ -23,7 +23,7 @@ func TestRandomForest(test *testing.T) {
 
 	rfFeatures := []db.OrderedFeature{}
 	for _, f := range []*db.NumericFeature{x, y, z} {
-		rfFeatures = append(rfFeatures, db.NewDecisionTreeNumericFeature(f))
+		rfFeatures = append(rfFeatures, f)
 	}
 
 	rf := db.NewRandomForestRegressor(10)
