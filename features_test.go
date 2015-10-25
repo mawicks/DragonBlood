@@ -65,7 +65,7 @@ func TestNumericFeature(t *testing.T) {
 
 func TestCategoricalFeature(t *testing.T) {
 	// Assign to Feature to ensure CategoricalFeature implements Feature
-	var cf db.OrderedFeature = db.NewCategoricalFeature(db.NewStringTable())
+	cf := db.NewCategoricalFeature(db.NewStringTable())
 
 	testStrings := []string{"alpha", "beta", "delta", "beta", "alpha"}
 
@@ -107,4 +107,7 @@ func TestCategoricalFeature(t *testing.T) {
 	ordercheck(3, "beta")
 	ordercheck(4, "delta")
 
+	if n := cf.Categories(); n != 3 {
+		t.Errorf("Expected %d categories; got %d\n", 3, n)
+	}
 }

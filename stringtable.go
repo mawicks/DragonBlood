@@ -8,8 +8,8 @@ package DragonBlood
 // Implementations should guarantee that Decode(Encode(string)) == string
 type StringTable interface {
 	Encode(string) (result int, ok bool)
-
 	Decode(int) string
+	Len() int
 }
 
 // stringTable is an implementation of the StringTable interface
@@ -38,4 +38,8 @@ func (st *stringTable) Encode(s string) (int, bool) {
 
 func (st *stringTable) Decode(i int) string {
 	return st.unmapper[i]
+}
+
+func (st *stringTable) Len() int {
+	return len(st.unmapper)
 }

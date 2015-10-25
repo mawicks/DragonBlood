@@ -141,6 +141,10 @@ func NewCategoricalFeature(st StringTable) *CategoricalFeature {
 	return &CategoricalFeature{st, nil, nil}
 }
 
+func (cf *CategoricalFeature) Categories() int {
+	return cf.stringTable.Len()
+}
+
 func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
 	for _, any := range anyValues {
 		// For now, only accept strings:
@@ -153,7 +157,6 @@ func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
 
 func (cf *CategoricalFeature) AddFromString(strings ...string) {
 	for _, s := range strings {
-		// Called for its side effects, so the return values are ignored
 		m, _ := cf.stringTable.Encode(s)
 		cf.values = append(cf.values, m)
 	}
