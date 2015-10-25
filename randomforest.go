@@ -3,6 +3,7 @@ package DragonBlood
 import (
 	"fmt"
 	"log"
+	"math"
 
 	"github.com/mawicks/DragonBlood/stats"
 )
@@ -19,8 +20,19 @@ func NewRandomForestRegressor(nTrees int) *RandomForestRegressor {
 		nTrees,
 		make([]*DecisionTreeNode, 0, nTrees),
 		0,
-		&decisionTreeGrower{MaxFeatures: 10, MinLeafSize: 1},
+		&decisionTreeGrower{MaxFeatures: math.MaxInt32, MinLeafSize: 1},
 	}
+}
+
+// Parameter setters:
+func (rf *RandomForestRegressor) SetMinLeafSize(m int) *RandomForestRegressor {
+	rf.grower.MinLeafSize = m
+	return rf
+}
+
+func (rf *RandomForestRegressor) SetMaxFeatures(m int) *RandomForestRegressor {
+	rf.grower.MaxFeatures = m
+	return rf
 }
 
 func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature) []float64 {

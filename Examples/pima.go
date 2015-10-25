@@ -73,7 +73,7 @@ func main() {
 
 	fmt.Printf("target: %v\n", handler.target)
 
-	rf := db.NewRandomForestRegressor(100)
+	rf := db.NewRandomForestRegressor(100).SetMaxFeatures(5).SetMinLeafSize(29)
 
 	oobScores := rf.Fit(handler.features, handler.target)
 
@@ -82,4 +82,7 @@ func main() {
 	variance := stats.Variance(targetNumeric)
 
 	fmt.Printf("ROCArea: %v MSE: %v Var: %v\n", auc, mse, variance)
+
+	importances := rf.Importances()
+	fmt.Printf("importances: %v\n", importances)
 }
