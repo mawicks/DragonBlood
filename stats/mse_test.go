@@ -7,7 +7,7 @@ import (
 )
 
 func TestSSEAccumulator(test *testing.T) {
-	a := stats.NewSSEAccumulator()
+	a := stats.NewVarianceAccumulator()
 	x := []float64{1.0, 2.0, 0.0, 5.0}
 	mu := []float64{1.0, 1.5, 1.0, 2.0}
 	s := []float64{0.0, 0.5, 2.0, 14.0}

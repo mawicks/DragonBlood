@@ -27,3 +27,18 @@ func ROCArea(score []float64, target []bool) float64 {
 	}
 	return float64(area) / float64(nPositive) / float64(nNegative)
 }
+
+func MSE(score, target []float64) float64 {
+	if len(score) != len(target) {
+		panic(fmt.Sprintf("Argument mismatch: len(score)=%d, but len(target)=%d", len(score), len(target)))
+	}
+
+	accumulator := 0.0
+
+	for i, t := range target {
+		e := t - score[i]
+		accumulator += e * e
+	}
+
+	return accumulator / float64(len(score))
+}

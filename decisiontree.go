@@ -97,7 +97,7 @@ func (fsi *FeatureSplitInfo) Dump() {
 type MSEAccumulator struct {
 	minLeafSize          int
 	previousFeatureValue float64
-	left, right          *stats.SSEAccumulator
+	left, right          *stats.VarianceAccumulator
 
 	count          int
 	bestMetric     float64
@@ -111,8 +111,8 @@ type MSEAccumulator struct {
 
 func NewMSEAccumulator(minLeafSize int) *MSEAccumulator {
 	return &MSEAccumulator{
-		left:                 stats.NewSSEAccumulator(),
-		right:                stats.NewSSEAccumulator(),
+		left:                 stats.NewVarianceAccumulator(),
+		right:                stats.NewVarianceAccumulator(),
 		bestMetric:           math.Inf(1),
 		previousFeatureValue: math.Inf(-1),
 		count:                0,
@@ -241,7 +241,7 @@ func dtInitialize(target Feature, bag Bag) ([]*DecisionTreeNode, []int) {
 	node := &DecisionTreeNode{feature: -1}
 
 	splittableNodeMembership := make([]int, bag.Len())
-	acc := stats.NewSSEAccumulator()
+	acc := stats.NewVarianceAccumulator()
 	for i := 0; i < bag.Len(); i++ {
 		splittableNodeMembership[i] = 0 // Root node
 		for j := 0; j < bag.Count(i); j++ {
