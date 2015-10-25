@@ -32,7 +32,7 @@ func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature) 
 	}
 
 	for _, f := range features {
-		f.Sort()
+		f.Prepare()
 	}
 
 	for i := 0; i < rf.nTrees; i++ {

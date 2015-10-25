@@ -418,7 +418,7 @@ func (dtr *DecisionTree) Importances() []float64 {
 
 func (dtr *DecisionTree) Fit(features []OrderedFeature, target Feature) {
 	for _, f := range features {
-		f.Sort()
+		f.Prepare()
 	}
 
 	bag := FullBag(features[0].Len())

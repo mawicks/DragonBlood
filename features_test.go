@@ -49,7 +49,7 @@ func TestNumericFeature(t *testing.T) {
 		}
 	}
 
-	nf.Sort()
+	nf.Prepare()
 
 	ordercheck(0, 3)
 	ordercheck(1, 1)
@@ -99,7 +99,7 @@ func TestCategoricalFeature(t *testing.T) {
 		}
 	}
 
-	cf.Sort()
+	cf.Prepare()
 
 	ordercheck(0, "alpha")
 	ordercheck(1, "alpha")

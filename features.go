@@ -19,16 +19,16 @@ type Feature interface {
 	Add(...interface{})
 	AddFromString(...string)
 
-	NumericValue(int) float64
+	NumericValue(i int) float64
 	Decode(float64) interface{}
 
-	Value(int) interface{}
+	Value(i int) interface{}
 }
 
 // OrderedFeature is an interface for processing a list of feature
 // values in a particular order.  The implementation should ensure that the
 // following code will process the values in their intended order:
-//    feature.Sort()
+//    feature.Prepare()
 //    for i:=0; i<len(feature); i++ {
 //       doSomething(feature.Value(InOrder(i)))
 //    }
@@ -37,12 +37,12 @@ type Feature interface {
 // In other words:
 //    if feature.Value(InOrder(i)) == feature.Value(InOrder(j))
 //    then feature.Value(InOrder(k)) == feature.Value(InOrder(i)) for all i <= k <= j
-// Calling Sort() should affect only the value of InOrder(i); it
+// Calling Prepare() should affect only the value of InOrder(i); it
 // should have no effect on the value of NumericValue(i) and Value(i)
 // for any i
 type OrderedFeature interface {
 	Feature
-	Sort()
+	Prepare()
 	InOrder(int) int
 }
 
@@ -111,7 +111,7 @@ func (nf *NumericFeature) Value(index int) interface{}    { return nf.values[ind
 
 func (nf *NumericFeature) Len() int { return len(nf.values) }
 
-func (nf *NumericFeature) Sort() {
+func (nf *NumericFeature) Prepare() {
 	nf.orderIndex = nil
 	for i, v := range nf.values {
 		nf.orderIndex = append(nf.orderIndex, attributeIndex{v, i})
@@ -180,7 +180,7 @@ func (ais intAttributeIndexSlice) Swap(i, j int)      { ais[i], ais[j] = ais[j],
 func (ais intAttributeIndexSlice) Len() int           { return len(ais) }
 func (ais intAttributeIndexSlice) Less(i, j int) bool { return ais[i].attribute < ais[j].attribute }
 
-func (cf *CategoricalFeature) Sort() {
+func (cf *CategoricalFeature) Prepare() {
 	cf.orderIndex = nil
 	for i, v := range cf.values {
 		cf.orderIndex = append(cf.orderIndex, intAttributeIndex{v, i})
