@@ -17,20 +17,6 @@ type Splitter interface {
 	String() string
 }
 
-type DecisionTreeMetric interface {
-	// Add is called once during a first pass on each member of a node to be split
-	// to accumulate statistics for the case that all members are in the right node.
-	Add(DecisionTreePredictor)
-
-	// Move is called once on each member to evalute the change in metric
-	// associated with moving it from the right node to the left node
-	Move(featureValue, targetValue float64)
-
-	// Bestsplit returns the best split encountered during the second pass.
-	// The underlying acculator will typically accumulate both the prediction and the metric.
-	BestSplit() *SplitInfo
-}
-
 // DecisionTreePredictor is a more lightweight version of DecisionTreeMetric
 // It doesn't implement Move() and only worries about the prediction member of BestSplit()
 // It is used to initialize a prediction for the root node, which may never get split.
@@ -39,13 +25,15 @@ type DecisionTreePredictor interface {
 	Subtract(float64)
 	Count() int
 	Prediction() float64
+	// Metric() should return a value weighted so that two metrics from a split can be added without
+	// weighting.  That way, the sum of the metrics across all of the nodes is the metric for the entire tree.
+	// For example, sum-of-squared-error is a valid metric, but mean-squared-error is not.
 	Metric() float64
 	Copy() DecisionTreePredictor
 }
 
-type DecisionTreeMetricFactory interface {
-	New(minLeafSize int) DecisionTreeMetric
-	NewPredictionAccumulator() DecisionTreePredictor
+type DecisionTreePredictorFactory interface {
+	New() DecisionTreePredictor
 }
 
 // Types
@@ -107,9 +95,6 @@ func (n *DecisionTreeNode) Dump(w io.Writer, level int, prefix string) {
 type SplitInfo struct {
 	splitter  Splitter
 	reduction float64
-
-	left  Prediction
-	right Prediction
 }
 
 type FeatureSplitInfo struct {
@@ -133,11 +118,7 @@ func NewMSEMetricFactory(minLeafSize int) MSEMetricFactory {
 	return MSEMetricFactory{minLeafSize}
 }
 
-func (af MSEMetricFactory) New(minLeafSize int) DecisionTreeMetric {
-	return NewMSEMetric(minLeafSize)
-}
-
-func (af MSEMetricFactory) NewPredictionAccumulator() DecisionTreePredictor {
+func (af MSEMetricFactory) New() DecisionTreePredictor {
 	return NewMeanPredictor()
 }
 
@@ -166,68 +147,55 @@ func (mp MeanPredictor) Prediction() float64 {
 }
 
 func (mp MeanPredictor) Metric() float64 {
-	return mp.varianceAccumulator.Variance()
+	return mp.varianceAccumulator.SumSquaredError()
 }
 
 func (mp MeanPredictor) Copy() DecisionTreePredictor {
 	return MeanPredictor{mp.varianceAccumulator.Copy()}
 }
 
-type MSEMetric struct {
+type DecisionTreeSplitEvaluator struct {
 	minLeafSize          int
 	previousFeatureValue float64
-	left, right          DecisionTreePredictor
 
-	count          int
+	left, right DecisionTreePredictor
+
+	count         int
+	initialMetric float64
+
 	bestMetric     float64
 	bestSplitValue float64
-
-	bestLeft  Prediction
-	bestRight Prediction
-
-	initialMetric float64
+	bestLeftSize   int
 }
 
-func NewMSEMetric(minLeafSize int) *MSEMetric {
-	return &MSEMetric{
+func NewDecisionTreeSplitEvaluator(dtp DecisionTreePredictor, minLeafSize int) *DecisionTreeSplitEvaluator {
+	return &DecisionTreeSplitEvaluator{
 		left:                 NewMeanPredictor(),
-		right:                NewMeanPredictor(),
+		right:                dtp,
 		bestMetric:           math.Inf(1),
 		previousFeatureValue: math.Inf(-1),
-		count:                0,
+		count:                dtp.Count(),
 		minLeafSize:          minLeafSize,
 	}
-}
-
-// Add target value to "right" tally
-func (a *MSEMetric) Add(dtp DecisionTreePredictor) {
-	a.right = dtp
-	a.count = dtp.Count()
 }
 
 // Evaluate the metric assuming a break to the immediate left of
 // featureValue (feature Value is in right set).  Then move the
 // attribute value from the right set to left set.
-func (a *MSEMetric) Move(featureValue, targetValue float64) {
+func (a *DecisionTreeSplitEvaluator) Move(featureValue, targetValue float64) {
 	// If left count is zero, the is the initial move and
 	// the current metric is the one to beat.
 	if a.left.Count() == 0 {
 		a.initialMetric = a.right.Metric()
 		a.bestMetric = a.initialMetric
+		a.bestLeftSize = 0
 	}
 	if featureValue != a.previousFeatureValue { // End of a run of identical values
-		metric := float64(a.left.Count())*a.left.Metric() + float64(a.right.Count())*a.right.Metric()
+		metric := a.left.Metric() + a.right.Metric()
 		if metric < a.bestMetric && a.left.Count() >= a.minLeafSize && a.right.Count() >= a.minLeafSize {
 			a.bestMetric = metric
 			a.bestSplitValue = 0.5 * (featureValue + a.previousFeatureValue)
-
-			if a.bestLeft.size = a.left.Count(); a.bestLeft.size > 0 {
-				a.bestLeft.prediction = a.left.Prediction()
-			}
-
-			if a.bestRight.size = a.right.Count(); a.bestRight.size > 0 {
-				a.bestRight.prediction = a.right.Prediction()
-			}
+			a.bestLeftSize = a.left.Count()
 		}
 		a.previousFeatureValue = featureValue
 	}
@@ -236,20 +204,18 @@ func (a *MSEMetric) Move(featureValue, targetValue float64) {
 	a.left.Add(targetValue)
 }
 
-func (a *MSEMetric) BestSplit() *SplitInfo {
+func (a *DecisionTreeSplitEvaluator) BestSplit() *SplitInfo {
 	var result *SplitInfo
 
 	if a.right.Count() != 0 {
 		panic("BestSplit() called prematurely (fewer Move() calls than Add() calls)")
 	}
 
-	if a.bestLeft.size != 0 && a.bestRight.size != 0 {
+	if a.bestLeftSize > 0 && a.bestLeftSize < a.count {
 		log.Printf("initialMetric: %v; bestMetric: %v", a.initialMetric, a.bestMetric)
 		result = &SplitInfo{
 			splitter:  NumericSplitter(a.bestSplitValue),
 			reduction: a.initialMetric - a.bestMetric,
-			left:      a.bestLeft,
-			right:     a.bestRight,
 		}
 	}
 	return result
@@ -269,10 +235,9 @@ func dtOptimalSplit(
 	accums []DecisionTreePredictor,
 	minLeafSize int) []*SplitInfo {
 
-	accumulators := make([]DecisionTreeMetric, len(accums))
+	accumulators := make([]*DecisionTreeSplitEvaluator, len(accums))
 	for i := range accums {
-		accumulators[i] = NewMSEMetric(minLeafSize)
-		accumulators[i].Add(accums[i].Copy())
+		accumulators[i] = NewDecisionTreeSplitEvaluator(accums[i].Copy(), minLeafSize)
 	}
 
 	// Second pass - move points from right to left and evalute new metric
@@ -303,29 +268,52 @@ type decisionTreeGrower struct {
 	MinLeafSize int
 }
 
-func dtInitialize(target Feature, bag Bag, af DecisionTreeMetricFactory) ([]*DecisionTreeNode, []int) {
+func dtInitialize(target Feature, bag Bag, af DecisionTreePredictorFactory) (splittableNodes []*DecisionTreeNode, nodeMembership []int) {
 	node := &DecisionTreeNode{feature: -1}
 
-	splittableNodeMembership := make([]int, bag.Len())
-	acc := af.NewPredictionAccumulator()
+	nodeMembership = make([]int, bag.Len())
 
 	for i := 0; i < bag.Len(); i++ {
-		splittableNodeMembership[i] = 0 // Root node
+		nodeMembership[i] = 0 // Root node
 		for j := 0; j < bag.Count(i); j++ {
-			acc.Add(target.NumericValue(i))
 		}
 	}
-
-	node.Prediction = Prediction{size: acc.Count(), prediction: acc.Prediction()}
 
 	// nextSplittableNodes is next generation of splittableNodes.
 	// It is initialized here (and re-generated during each
 	// iteration) and contains pointers to nodes that are eligible
 	// for splitting during next generation.
-	initialSplittableNodes := []*DecisionTreeNode{node}
+	splittableNodes = []*DecisionTreeNode{node}
 
-	return initialSplittableNodes, splittableNodeMembership
+	return splittableNodes, nodeMembership
 }
+
+func dtInitialMetrics(target Feature, nodeMembership []int, bag Bag, splittableNodes []*DecisionTreeNode, af DecisionTreePredictorFactory) []DecisionTreePredictor {
+	accumulators := make([]DecisionTreePredictor, len(splittableNodes))
+	for i := range accumulators {
+		accumulators[i] = af.New()
+	}
+
+	// First pass - accumulate stats with all points
+	for i := 0; i < len(nodeMembership); i++ {
+		if nm := nodeMembership[i]; nm >= 0 {
+			for j := 0; j < bag.Count(i); j++ {
+				accumulators[nm].Add(target.NumericValue(i))
+			}
+		}
+	}
+
+	for i, acc := range accumulators {
+		splittableNodes[i].Prediction = Prediction{acc.Count(), acc.Prediction()}
+	}
+
+	for _, n := range splittableNodes {
+		fmt.Printf("node: %+v\n", n)
+	}
+	return accumulators
+}
+
+type SplitPair struct{ left, right int }
 
 func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 	candidateSplitsByFeature [][]*FeatureSplitInfo,
@@ -367,8 +355,8 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 			node.splitter = bestSplit.splitter
 			node.reduction = bestSplit.reduction
 
-			node.Left = &DecisionTreeNode{feature: -1, Prediction: bestSplit.left}
-			node.Right = &DecisionTreeNode{feature: -1, Prediction: bestSplit.right}
+			node.Left = &DecisionTreeNode{feature: -1}
+			node.Right = &DecisionTreeNode{feature: -1}
 
 			leftIndex := len(nextSplittableNodes)
 			nextSplittableNodes = append(nextSplittableNodes, node.Left)
@@ -385,28 +373,7 @@ func dtSelectSplits(splittableNodes []*DecisionTreeNode,
 	return nextSplittableNodes, nodeSplits
 }
 
-func dtInitialMetrics(target Feature, nodeMembership []int, bag Bag, splittableNodes []*DecisionTreeNode, af DecisionTreeMetricFactory) []DecisionTreePredictor {
-	accumulators := make([]DecisionTreePredictor, len(splittableNodes))
-	for i := range accumulators {
-		accumulators[i] = af.NewPredictionAccumulator()
-	}
-
-	// First pass - accumulate stats with all points to right of split
-	// Add points from right to left so they are removed in LIFO order
-	for i := 0; i < len(nodeMembership); i++ {
-		if nm := nodeMembership[i]; nm >= 0 {
-			for j := 0; j < bag.Count(i); j++ {
-				accumulators[nm].Add(target.NumericValue(i))
-			}
-		}
-	}
-
-	return accumulators
-}
-
-type SplitPair struct{ left, right int }
-
-func (dtg *decisionTreeGrower) grow(features []OrderedFeature, target Feature, bag Bag, oobPrediction []stats.Accumulator, af DecisionTreeMetricFactory) *DecisionTreeNode {
+func (dtg *decisionTreeGrower) grow(features []OrderedFeature, target Feature, bag Bag, oobPrediction []stats.Accumulator, af DecisionTreePredictorFactory) *DecisionTreeNode {
 	maxFeatures := dtg.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
@@ -505,7 +472,7 @@ func (dtr *DecisionTree) Importances() []float64 {
 	return importances
 }
 
-func (dtr *DecisionTree) Fit(features []OrderedFeature, target Feature, af DecisionTreeMetricFactory) {
+func (dtr *DecisionTree) Fit(features []OrderedFeature, target Feature, af DecisionTreePredictorFactory) {
 	for _, f := range features {
 		f.Prepare()
 	}

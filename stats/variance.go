@@ -46,7 +46,7 @@ func (a *VarianceAccumulator) Variance() float64 {
 	}
 }
 
-func (a *VarianceAccumulator) Value() float64 {
+func (a *VarianceAccumulator) SumSquaredError() float64 {
 	return a.sumSquaredError
 }
 

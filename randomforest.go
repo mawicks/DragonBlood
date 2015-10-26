@@ -35,7 +35,7 @@ func (rf *RandomForestRegressor) SetMaxFeatures(m int) *RandomForestRegressor {
 	return rf
 }
 
-func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature, af DecisionTreeMetricFactory) []float64 {
+func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature, af DecisionTreePredictorFactory) []float64 {
 	rf.nFeatures = len(features)
 
 	oobPrediction := make([]stats.Accumulator, features[0].Len())
