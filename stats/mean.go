@@ -13,7 +13,7 @@ type MeanAccumulator struct {
 	sum   float64
 }
 
-func NewMeanAccumulator() *MeanAccumulator {
+func NewMeanAccumulator() Accumulator {
 	return &MeanAccumulator{}
 }
 
@@ -50,6 +50,11 @@ func (a *MeanAccumulator) Subtract(x float64) float64 {
 	}
 
 	return a.sum
+}
+
+func (a *MeanAccumulator) Copy() Accumulator {
+	new := *a
+	return &new
 }
 
 func (a *MeanAccumulator) Reset() {

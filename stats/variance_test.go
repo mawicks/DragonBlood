@@ -32,6 +32,8 @@ func TestVarianceAccumulator(test *testing.T) {
 		}
 	}
 
+	copy := a.Copy()
+
 	for i := len(x) - 1; i >= 0; i-- {
 		sse, mean := a.Subtract(x[i])
 
@@ -43,10 +45,10 @@ func TestVarianceAccumulator(test *testing.T) {
 				test.Errorf("Value() returned %v but Add() returned %v", a.Value(), sse)
 			}
 			if sse != s[i-1] {
-				test.Errorf("Expected sse of %v; got %v", s[i-1], a.Value())
+				test.Errorf("Expected sse of %v; got %v", s[i-1], sse)
 			}
 			if mean != mu[i-1] {
-				test.Errorf("Expected mean of %v; got %v", mu[i-1], a.Value())
+				test.Errorf("Expected mean of %v; got %v", mu[i-1], mean)
 			}
 			if a.Variance() != s[i-1]/float64(i) {
 				test.Errorf("Expected sse of %v; got %v", s[i]/float64(i+1), a.Variance())
@@ -56,6 +58,18 @@ func TestVarianceAccumulator(test *testing.T) {
 				test.Errorf("Error is %v; count is %v; MSE is %v but all should be zero", sse, a.Count(), a.Variance())
 			}
 		}
+	}
+
+	if copy.Count() != len(x) {
+		test.Errorf("Copy has length of %d; expected %d", copy.Count(), len(x))
+	}
+
+	if copy.Value() != s[len(s)-1] {
+		test.Errorf("Value() returned %v; expected %v", copy.Value(), s[len(s)-1])
+	}
+
+	if copy.Mean() != mu[len(mu)-1] {
+		test.Errorf("Value() returned %v; expected %v", copy.Mean(), mu[len(mu)-1])
 	}
 }
 

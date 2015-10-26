@@ -76,6 +76,11 @@ func (a *VarianceAccumulator) Reset() {
 	a.count = 0
 }
 
+func (a *VarianceAccumulator) Copy() *VarianceAccumulator {
+	new := *a
+	return &new
+}
+
 func Variance(sequence []float64) float64 {
 	accumulator := NewVarianceAccumulator()
 	for _, x := range sequence {

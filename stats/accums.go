@@ -5,4 +5,5 @@ type Accumulator interface {
 	Subtract(float64) float64
 	Value() float64
 	Reset()
+	Copy() Accumulator
 }
