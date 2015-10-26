@@ -26,8 +26,10 @@ func TestRandomForest(test *testing.T) {
 		rfFeatures = append(rfFeatures, f)
 	}
 
-	rf := db.NewRandomForestRegressor(10).SetMaxFeatures(3).SetMinLeafSize(1)
-	oob := rf.Fit(rfFeatures, t)
+	rf := db.NewRandomForest(10).SetMaxFeatures(3).SetMinLeafSize(1)
+	mf := db.NewMSEMetricFactory(1)
+
+	oob := rf.Fit(rfFeatures, t, mf)
 
 	tEstimate := rf.Predict([]db.Feature{x, y, z})
 

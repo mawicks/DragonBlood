@@ -15,7 +15,7 @@ type RandomForestRegressor struct {
 	grower    *decisionTreeGrower
 }
 
-func NewRandomForestRegressor(nTrees int) *RandomForestRegressor {
+func NewRandomForest(nTrees int) *RandomForestRegressor {
 	return &RandomForestRegressor{
 		nTrees,
 		make([]*DecisionTreeNode, 0, nTrees),
@@ -35,7 +35,7 @@ func (rf *RandomForestRegressor) SetMaxFeatures(m int) *RandomForestRegressor {
 	return rf
 }
 
-func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature) []float64 {
+func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature, af DecisionTreeMetricFactory) []float64 {
 	rf.nFeatures = len(features)
 
 	oobPrediction := make([]stats.Accumulator, features[0].Len())
@@ -51,7 +51,7 @@ func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature) 
 		bag := NewBag(features[0].Len())
 		log.Printf("bag: %v", bag)
 
-		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag, oobPrediction))
+		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag, oobPrediction, af))
 	}
 
 	result := make([]float64, len(oobPrediction))

@@ -73,9 +73,10 @@ func main() {
 
 	fmt.Printf("target: %v\n", handler.target)
 
-	rf := db.NewRandomForestRegressor(100).SetMaxFeatures(5).SetMinLeafSize(29)
+	rf := db.NewRandomForest(100).SetMaxFeatures(5).SetMinLeafSize(29)
+	mf := db.NewMSEMetricFactory(1)
 
-	oobScores := rf.Fit(handler.features, handler.target)
+	oobScores := rf.Fit(handler.features, handler.target, mf)
 
 	auc := db.ROCArea(oobScores, targetBool)
 	mse := db.MSE(oobScores, targetNumeric)

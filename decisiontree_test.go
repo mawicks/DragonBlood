@@ -25,8 +25,10 @@ func TestDecisionTree(test *testing.T) {
 		dtFeatures = append(dtFeatures, f)
 	}
 
-	dt := db.NewDecisionTreeRegressor()
-	dt.Fit(dtFeatures, t)
+	dt := db.NewDecisionTree()
+	af := db.NewMSEMetricFactory(1)
+
+	dt.Fit(dtFeatures, t, af)
 
 	tEstimate := dt.Predict([]db.Feature{x, y, z})
 
