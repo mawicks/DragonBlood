@@ -110,7 +110,7 @@ type DecisionTreeSplitEvaluator struct {
 
 func NewDecisionTreeSplitEvaluator(dtp DecisionTreeSplittingCriterion, minLeafSize int) *DecisionTreeSplitEvaluator {
 	return &DecisionTreeSplitEvaluator{
-		left:                 NewMeanPredictor(),
+		left:                 NewMSECriterion(),
 		right:                dtp,
 		bestMetric:           math.Inf(1),
 		previousFeatureValue: math.Inf(-1),
