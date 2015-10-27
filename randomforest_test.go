@@ -27,7 +27,7 @@ func TestRandomForest(test *testing.T) {
 	}
 
 	rf := db.NewRandomForest(10).SetMaxFeatures(3).SetMinLeafSize(1)
-	mf := db.NewMSEMetricFactory(1)
+	mf := db.NewMSEMetricFactory()
 
 	oob := rf.Fit(rfFeatures, t, mf)
 

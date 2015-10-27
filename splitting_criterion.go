@@ -1,6 +1,11 @@
 package DragonBlood
 
-import "github.com/mawicks/DragonBlood/stats"
+import (
+	"fmt"
+	"math"
+
+	"github.com/mawicks/DragonBlood/stats"
+)
 
 type DecisionTreeSplittingCriterion interface {
 	// Add() updates the internal state associated with adding x to a node.
@@ -32,14 +37,14 @@ type DecisionTreeSplittingCriterion interface {
 type DecisionTreeSplittingCriterionFactory interface {
 	New() DecisionTreeSplittingCriterion
 }
-type MSECriterionFactory struct {
-}
 
-func NewMSEMetricFactory(minLeafSize int) MSECriterionFactory {
+type MSECriterionFactory struct{}
+
+func NewMSEMetricFactory() MSECriterionFactory {
 	return MSECriterionFactory{}
 }
 
-func (af MSECriterionFactory) New() DecisionTreeSplittingCriterion {
+func (cf MSECriterionFactory) New() DecisionTreeSplittingCriterion {
 	return NewMSECriterion()
 }
 
@@ -47,7 +52,7 @@ type MSECriterion struct {
 	varianceAccumulator *stats.VarianceAccumulator
 }
 
-func NewMSECriterion() DecisionTreeSplittingCriterion {
+func NewMSECriterion() *MSECriterion {
 	return &MSECriterion{stats.NewVarianceAccumulator()}
 }
 
@@ -73,4 +78,81 @@ func (mp MSECriterion) Metric() float64 {
 
 func (mp MSECriterion) Copy() DecisionTreeSplittingCriterion {
 	return MSECriterion{mp.varianceAccumulator.Copy()}
+}
+
+// Definitions associatedw with entropy splitting criterion
+
+type EntropyCriterionFactory struct{}
+
+func NewEntropyFactory() EntropyCriterionFactory {
+	return EntropyCriterionFactory{}
+}
+
+func (cf EntropyCriterionFactory) New() DecisionTreeSplittingCriterion {
+	return NewEntropyCriterion()
+}
+
+type EntropyCriterion struct {
+	count  int
+	counts map[float64]int
+}
+
+func NewEntropyCriterion() *EntropyCriterion {
+	return &EntropyCriterion{
+		0,
+		make(map[float64]int, 10),
+	}
+}
+
+func (ec *EntropyCriterion) Add(x float64) {
+	ec.counts[x] += 1
+	ec.count += 1
+}
+
+func (ec *EntropyCriterion) Subtract(x float64) {
+	if ec.count <= 0 {
+		panic("Subtract() without corresponding Add()")
+	}
+	if ec.counts[x] <= 0 {
+		panic(fmt.Sprintf("Subtract() without corresponding Add() for item %v", x))
+	}
+	ec.count -= 1
+	ec.counts[x] -= 1
+	if ec.counts[x] <= 0 {
+		delete(ec.counts, x)
+	}
+}
+
+func (ec *EntropyCriterion) Count() int {
+	return ec.count
+}
+
+func (ec *EntropyCriterion) Prediction() (prediction float64) {
+	maxCount := 0
+
+	for x, c := range ec.counts {
+		if c > maxCount {
+			maxCount = c
+			prediction = x
+		}
+	}
+	return prediction
+}
+
+func (ec *EntropyCriterion) Metric() float64 {
+	m := 0.0
+	for _, c := range ec.counts {
+		p := float64(c) / float64(ec.count)
+		m -= p * math.Log(p)
+	}
+	return m * float64(ec.count)
+}
+
+func (ec *EntropyCriterion) Copy() DecisionTreeSplittingCriterion {
+	new := NewEntropyCriterion()
+	for k, v := range ec.counts {
+		new.counts[k] = v
+	}
+	new.count = ec.count
+	return new
 }

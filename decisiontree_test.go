@@ -26,7 +26,7 @@ func TestDecisionTree(test *testing.T) {
 	}
 
 	dt := db.NewDecisionTree()
-	af := db.NewMSEMetricFactory(1)
+	af := db.NewMSEMetricFactory()
 
 	dt.Fit(dtFeatures, t, af)
 
