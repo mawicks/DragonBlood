@@ -27,11 +27,35 @@ func TestRandomForest(test *testing.T) {
 	}
 
 	rf := db.NewRandomForest(10).SetMaxFeatures(3).SetMinLeafSize(1)
-	mf := db.NewMSEMetricFactory()
+
+	var mf db.DecisionTreeSplittingCriterionFactory
+
+	mf = db.NewMSECriterionFactory()
 
 	oob := rf.Fit(rfFeatures, t, mf)
 
 	tEstimate := rf.Predict([]db.Feature{x, y, z})
+
+	if len(tEstimate) != t.Len() {
+		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
+	}
+
+	fmt.Printf("oob preds: %v\n", oob)
+
+	for i, te := range tEstimate {
+		fmt.Printf("predicted: %v; actual: %v\n", te, t.Value(i))
+		//		if te != t.Value(i) {
+		//			test.Errorf("Row %d: predicted %v; actual %v", i, te, t.Value///(i))
+		//		}
+	}
+
+	fmt.Printf("feature importances (forest): %v\n", rf.Importances())
+
+	mf = db.NewEntropyCriterionFactory()
+
+	oob = rf.Fit(rfFeatures, t, mf)
+
+	tEstimate = rf.Predict([]db.Feature{x, y, z})
 
 	if len(tEstimate) != t.Len() {
 		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())

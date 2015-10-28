@@ -26,7 +26,9 @@ func TestDecisionTree(test *testing.T) {
 	}
 
 	dt := db.NewDecisionTree()
-	af := db.NewMSEMetricFactory()
+
+	var af db.DecisionTreeSplittingCriterionFactory
+	af = db.NewMSECriterionFactory()
 
 	dt.Fit(dtFeatures, t, af)
 
@@ -43,4 +45,24 @@ func TestDecisionTree(test *testing.T) {
 	}
 
 	fmt.Printf("%v\n", dt.Importances())
+
+	// Repeat using entropy criterion
+	af = db.NewEntropyCriterionFactory()
+
+	dt.Fit(dtFeatures, t, af)
+
+	tEstimate = dt.Predict([]db.Feature{x, y, z})
+
+	if len(tEstimate) != t.Len() {
+		test.Errorf("dt.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
+	}
+
+	for i, te := range tEstimate {
+		if te != t.Value(i) {
+			test.Errorf("Row %d: predicted %v; actual %v", i, te, t.Value(i))
+		}
+	}
+
+	fmt.Printf("%v\n", dt.Importances())
+
 }

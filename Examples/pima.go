@@ -74,7 +74,8 @@ func main() {
 	fmt.Printf("target: %v\n", handler.target)
 
 	rf := db.NewRandomForest(100).SetMaxFeatures(5).SetMinLeafSize(29)
-	mf := db.NewMSEMetricFactory(1)
+	mf := db.NewMSECriterionFactory()
+	//	mf := db.NewEntropyCriterionFactory()
 
 	oobScores := rf.Fit(handler.features, handler.target, mf)
 

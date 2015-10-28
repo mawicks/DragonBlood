@@ -40,7 +40,7 @@ type DecisionTreeSplittingCriterionFactory interface {
 
 type MSECriterionFactory struct{}
 
-func NewMSEMetricFactory() MSECriterionFactory {
+func NewMSECriterionFactory() MSECriterionFactory {
 	return MSECriterionFactory{}
 }
 
@@ -80,11 +80,11 @@ func (mp MSECriterion) Copy() DecisionTreeSplittingCriterion {
 	return MSECriterion{mp.varianceAccumulator.Copy()}
 }
 
-// Definitions associatedw with entropy splitting criterion
+// Definitions associated with entropy splitting criterion
 
 type EntropyCriterionFactory struct{}
 
-func NewEntropyFactory() EntropyCriterionFactory {
+func NewEntropyCriterionFactory() EntropyCriterionFactory {
 	return EntropyCriterionFactory{}
 }
 
@@ -141,11 +141,15 @@ func (ec *EntropyCriterion) Prediction() (prediction float64) {
 
 func (ec *EntropyCriterion) Metric() float64 {
 	m := 0.0
-	for _, c := range ec.counts {
-		p := float64(c) / float64(ec.count)
-		m -= p * math.Log(p)
+	if ec.count > 0 {
+		for _, c := range ec.counts {
+			if c > 0 {
+				m -= float64(c) * math.Log2(float64(c))
+			}
+		}
+		m += float64(ec.count) * math.Log2(float64(ec.count))
 	}
-	return m * float64(ec.count)
+	return m
 }
 
 func (ec *EntropyCriterion) Copy() DecisionTreeSplittingCriterion {
