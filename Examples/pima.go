@@ -71,20 +71,23 @@ func main() {
 		log.Fatal("Import returned error")
 	}
 
-	fmt.Printf("target: %v\n", handler.target)
-
 	rf := db.NewRandomForest(100).SetMaxFeatures(5).SetMinLeafSize(29)
-	mf := db.NewMSECriterionFactory()
 	//	mf := db.NewEntropyCriterionFactory()
-
-	oobScores := rf.Fit(handler.features, handler.target, mf)
+	oobScores := rf.Fit(handler.features, handler.target, db.NewMSECriterionFactory())
 
 	auc := db.ROCArea(oobScores, targetBool)
 	mse := db.MSE(oobScores, targetNumeric)
 	variance := stats.Variance(targetNumeric)
 
-	fmt.Printf("ROCArea: %v MSE: %v Var: %v\n", auc, mse, variance)
-
 	importances := rf.Importances()
+
+	oobGini := rf.Fit(handler.features, handler.target, db.NewGiniCriterionFactory())
+	accuracyGini := db.Accuracy(oobGini, targetNumeric)
+
 	fmt.Printf("importances: %v\n", importances)
+	//	fmt.Printf("oob(gini): %v\n", oobGini)
+	//	fmt.Printf("target: %v\n", targetNumeric)
+
+	fmt.Printf("ROCArea: %v MSE: %v Var: %v\n", auc, mse, variance)
+	fmt.Printf("Accuracy(gini): %v\n", accuracyGini)
 }

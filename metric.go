@@ -42,3 +42,19 @@ func MSE(score, target []float64) float64 {
 
 	return accumulator / float64(len(score))
 }
+
+func Accuracy(score, target []float64) float64 {
+	if len(score) != len(target) {
+		panic(fmt.Sprintf("Argument mismatch: len(score)=%d, but len(target)=%d", len(score), len(target)))
+	}
+
+	success := 0
+
+	for i, t := range target {
+		if score[i] == t {
+			success += 1
+		}
+	}
+
+	return float64(success) / float64(len(score))
+}

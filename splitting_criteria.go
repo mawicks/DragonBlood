@@ -32,6 +32,8 @@ type DecisionTreeSplittingCriterion interface {
 	// Copy() returns a new DecisionTreePredictor of the same type
 	// with identical internal state.
 	Copy() DecisionTreeSplittingCriterion
+
+	Dump(string)
 }
 
 type DecisionTreeSplittingCriterionFactory interface {
@@ -80,6 +82,8 @@ func (mp MSECriterion) Copy() DecisionTreeSplittingCriterion {
 	return MSECriterion{mp.varianceAccumulator.Copy()}
 }
 
+func (mp MSECriterion) Dump(string) {}
+
 // Definitions associated with entropy splitting criterion
 
 type EntropyCriterionFactory struct{}
@@ -89,27 +93,41 @@ func NewEntropyCriterionFactory() EntropyCriterionFactory {
 }
 
 func (cf EntropyCriterionFactory) New() DecisionTreeSplittingCriterion {
-	return NewEntropyCriterion()
+	return NewCategoricalCriterion(func(p float64) float64 { return -math.Log2(float64(p)) })
 }
 
-type EntropyCriterion struct {
+type GiniCriterionFactory struct{}
+
+func NewGiniCriterionFactory() EntropyCriterionFactory {
+	return EntropyCriterionFactory{}
+}
+func (cf GiniCriterionFactory) New() DecisionTreeSplittingCriterion {
+	return NewCategoricalCriterion(func(p float64) float64 { return (1 - p) })
+}
+
+type CategoricalCriterion struct {
 	count  int
 	counts map[float64]int
+	// The categorical node metric is assumed to have the form sum_i count_i function(p_i)
+	// For gini: function(p) = (1 - p)
+	// For entropy: function(p) = - log2(p)
+	function func(float64) float64
 }
 
-func NewEntropyCriterion() *EntropyCriterion {
-	return &EntropyCriterion{
+func NewCategoricalCriterion(f func(float64) float64) *CategoricalCriterion {
+	return &CategoricalCriterion{
 		0,
 		make(map[float64]int, 10),
+		f,
 	}
 }
 
-func (ec *EntropyCriterion) Add(x float64) {
+func (ec *CategoricalCriterion) Add(x float64) {
 	ec.counts[x] += 1
 	ec.count += 1
 }
 
-func (ec *EntropyCriterion) Subtract(x float64) {
+func (ec *CategoricalCriterion) Subtract(x float64) {
 	if ec.count <= 0 {
 		panic("Subtract() without corresponding Add()")
 	}
@@ -123,11 +141,12 @@ func (ec *EntropyCriterion) Subtract(x float64) {
 	}
 }
 
-func (ec *EntropyCriterion) Count() int {
+func (ec *CategoricalCriterion) Count() int {
 	return ec.count
 }
 
-func (ec *EntropyCriterion) Prediction() (prediction float64) {
+func (ec *CategoricalCriterion) Prediction() (prediction float64) {
+	prediction = math.NaN()
 	maxCount := 0
 
 	for x, c := range ec.counts {
@@ -136,27 +155,32 @@ func (ec *EntropyCriterion) Prediction() (prediction float64) {
 			prediction = x
 		}
 	}
+
 	return prediction
 }
 
-func (ec *EntropyCriterion) Metric() float64 {
+func (ec *CategoricalCriterion) Metric() float64 {
 	m := 0.0
 	if ec.count > 0 {
 		for _, c := range ec.counts {
 			if c > 0 {
-				m -= float64(c) * math.Log2(float64(c))
+				p := float64(c) / float64(ec.count)
+				m += float64(c) * ec.function(p)
 			}
 		}
-		m += float64(ec.count) * math.Log2(float64(ec.count))
 	}
 	return m
 }
 
-func (ec *EntropyCriterion) Copy() DecisionTreeSplittingCriterion {
-	new := NewEntropyCriterion()
+func (ec *CategoricalCriterion) Copy() DecisionTreeSplittingCriterion {
+	new := NewCategoricalCriterion(ec.function)
 	for k, v := range ec.counts {
 		new.counts[k] = v
 	}
 	new.count = ec.count
 	return new
+}
+
+func (ec *CategoricalCriterion) Dump(s string) {
+	fmt.Printf("%s %+v\n", s, ec.counts)
 }

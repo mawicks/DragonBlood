@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-
-	"github.com/mawicks/DragonBlood/stats"
 )
 
 type RandomForestRegressor struct {
@@ -38,9 +36,9 @@ func (rf *RandomForestRegressor) SetMaxFeatures(m int) *RandomForestRegressor {
 func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature, af DecisionTreeSplittingCriterionFactory) []float64 {
 	rf.nFeatures = len(features)
 
-	oobPrediction := make([]stats.Accumulator, features[0].Len())
+	oobPrediction := make([]DecisionTreeSplittingCriterion, features[0].Len())
 	for i := range oobPrediction {
-		oobPrediction[i] = stats.NewMeanAccumulator()
+		oobPrediction[i] = af.New()
 	}
 
 	for _, f := range features {
@@ -49,14 +47,15 @@ func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature, 
 
 	for i := 0; i < rf.nTrees; i++ {
 		bag := NewBag(features[0].Len())
-		log.Printf("bag: %v", bag)
+		log.Printf("Next Fit()\n")
+		//		log.Printf("   --- bag: %v", bag)
 
 		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag, oobPrediction, af))
 	}
 
 	result := make([]float64, len(oobPrediction))
 	for i, p := range oobPrediction {
-		result[i] = p.Value()
+		result[i] = p.Prediction()
 	}
 
 	return result
