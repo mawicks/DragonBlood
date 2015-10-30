@@ -8,20 +8,12 @@ import (
 )
 
 func TestDecisionTree(test *testing.T) {
-	x := db.NewNumericFeature(nil)
-	x.Add(0, 1, 2, 3, 4, 5, 6, 7)
+	x := db.NewNumericFeature(0, 1, 2, 3, 4, 5, 6, 7)
+	y := db.NewNumericFeature(1, 2, 1, 2, 1, 2, 1, 2)
+	z := db.NewNumericFeature(1, 1, 1, 1, 2, 2, 2, 2)
 
-	y := db.NewNumericFeature(nil)
-	y.Add(1, 2, 1, 2, 1, 2, 1, 2)
-
-	z := db.NewNumericFeature(nil)
-	z.Add(1, 1, 1, 1, 2, 2, 2, 2)
-
-	continuousTarget := db.NewNumericFeature(nil)
-	continuousTarget.Add(3, 0, 3, 1, 7, 6, 5, -1)
-
-	categoricalTarget := db.NewNumericFeature(nil)
-	categoricalTarget.Add(1, 0, 1, 0, 1, 1, 1, 0)
+	continuousTarget := db.NewNumericFeature(3, 0, 3, 1, 7, 6, 5, -1)
+	categoricalTarget := db.NewNumericFeature(1, 0, 1, 0, 1, 1, 1, 0)
 
 	dtFeatures := []db.OrderedFeature{}
 	for _, f := range []*db.NumericFeature{x, y, z} {

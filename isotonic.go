@@ -7,7 +7,7 @@ func Isotonic(attribute, target []float64) (x, y []float64) {
 		panic(fmt.Sprintf("Argument mismatch: len(x)=%d, but len(target)=%d", len(x), len(target)))
 	}
 
-	sortable := NewNumericFeature(attribute)
+	sortable := NewNumericFeature(attribute...)
 	sortable.Prepare()
 
 	type segment struct {

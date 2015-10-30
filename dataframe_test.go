@@ -21,7 +21,7 @@ func TestDataFrame(t *testing.T) {
 
 	nf := db.NewDataFrame()
 	for i := 0; i < 4; i++ {
-		nf.AddFeature(db.NewDataFrameFeature(names[i], db.NewNumericFeature(nil)))
+		nf.AddFeature(db.NewDataFrameFeature(names[i], db.NewNumericFeature()))
 	}
 
 	if nf.Length() != 0 {
@@ -61,9 +61,9 @@ func featureFactory(s string) db.DataFrameFeature {
 	var feature db.Feature
 	switch s[0] {
 	case 'C':
-		feature = db.NewCategoricalFeature(db.NewStringTable())
+		feature = db.NewCategoricalFeature()
 	default:
-		feature = db.NewNumericFeature(nil)
+		feature = db.NewNumericFeature()
 	}
 	return db.NewDataFrameFeature(s, feature)
 }

@@ -9,7 +9,7 @@ import (
 
 func TestNumericFeature(t *testing.T) {
 	// Assign to Feature to ensure NumericFeature implements Feature
-	var f db.Feature = db.NewNumericFeature(nil)
+	var f db.Feature = db.NewNumericFeature()
 	// Assign it back so we can use its NumericFeature methods
 	var nf = f.(*db.NumericFeature)
 
@@ -65,7 +65,7 @@ func TestNumericFeature(t *testing.T) {
 
 func TestCategoricalFeature(t *testing.T) {
 	// Assign to Feature to ensure CategoricalFeature implements Feature
-	cf := db.NewCategoricalFeature(db.NewStringTable())
+	cf := db.NewCategoricalFeature()
 
 	testStrings := []string{"alpha", "beta", "delta", "beta", "alpha"}
 

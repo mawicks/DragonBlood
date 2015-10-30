@@ -73,7 +73,7 @@ type NumericFeature struct {
 	orderIndex attributeIndexSlice
 }
 
-func NewNumericFeature(x []float64) *NumericFeature {
+func NewNumericFeature(x ...float64) *NumericFeature {
 	return &NumericFeature{x, nil}
 }
 
@@ -137,8 +137,13 @@ type CategoricalFeature struct {
 	orderIndex  intAttributeIndexSlice
 }
 
-func NewCategoricalFeature(st StringTable) *CategoricalFeature {
-	return &CategoricalFeature{st, nil, nil}
+func NewCategoricalFeature(anyValues ...interface{}) *CategoricalFeature {
+	st := NewStringTable()
+	new := &CategoricalFeature{st, nil, nil}
+	if anyValues != nil {
+		new.Add(anyValues...)
+	}
+	return new
 }
 
 func (cf *CategoricalFeature) Categories() int {
@@ -192,6 +197,10 @@ func (cf *CategoricalFeature) InOrder(index int) int {
 	return cf.orderIndex[index].index
 }
 
+func (cf *CategoricalFeature) Values() int {
+	return len(cf.values)
+}
+
 // Deprecated
 type FeatureFactory interface {
 	New() Feature
@@ -204,7 +213,7 @@ type NumericFeatureFactory struct{}
 
 // Deprecated
 func (NumericFeatureFactory) New(name string) Feature {
-	return NewNumericFeature(nil)
+	return NewNumericFeature()
 }
 
 // Deprecated

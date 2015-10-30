@@ -11,7 +11,7 @@ func ROCArea(score []float64, target []bool) float64 {
 	}
 
 	area := uint64(0)
-	sortableScore := NewNumericFeature(score)
+	sortableScore := NewNumericFeature(score...)
 	sortableScore.Prepare()
 
 	nPositive := 0
