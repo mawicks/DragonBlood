@@ -98,8 +98,8 @@ func (cf EntropyCriterionFactory) New() DecisionTreeSplittingCriterion {
 
 type GiniCriterionFactory struct{}
 
-func NewGiniCriterionFactory() EntropyCriterionFactory {
-	return EntropyCriterionFactory{}
+func NewGiniCriterionFactory() GiniCriterionFactory {
+	return GiniCriterionFactory{}
 }
 func (cf GiniCriterionFactory) New() DecisionTreeSplittingCriterion {
 	return NewCategoricalCriterion(func(p float64) float64 { return (1 - p) })
