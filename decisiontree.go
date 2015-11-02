@@ -123,6 +123,9 @@ func NewDecisionTreeSplitEvaluator(af DecisionTreeSplittingCriterionFactory, dtp
 // featureValue (feature Value is in right set).  Then move the
 // attribute value from the right set to left set.
 func (a *DecisionTreeSplitEvaluator) Move(featureValue, targetValue float64) {
+	// FIXME
+	//	log.Printf("Move(): featureValue: %v targetValue: %v  left metric: %g right metric: %g combined: %g\n",
+	//	featureValue, targetValue, a.left.Metric(), a.right.Metric(), a.left.Metric()+a.right.Metric())
 	if featureValue != a.previousFeatureValue { // End of a run of identical values
 		metric := a.left.Metric() + a.right.Metric()
 		if metric < a.bestMetric && a.left.Count() >= a.minLeafSize && a.right.Count() >= a.minLeafSize {
@@ -309,8 +312,8 @@ func (dtg *decisionTreeGrower) grow(features []OrderedFeature, target Feature, b
 
 	var nextSplittableNodes []*DecisionTreeNode
 	for splittableNodes := []*DecisionTreeNode{root}; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
-		log.Printf("*** New Generation ***")
 		// FIXME
+		//		log.Printf("*** New Generation ***")
 		//		log.Printf("splittableNodeMembership: %v", splittableNodeMembership)
 
 		accums := dtInitialMetrics(target, splittableNodeMembership, bag, splittableNodes, af)

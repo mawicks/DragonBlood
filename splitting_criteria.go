@@ -165,7 +165,7 @@ func (ec *CategoricalCriterion) Metric() float64 {
 		for _, c := range ec.counts {
 			if c > 0 {
 				p := float64(c) / float64(ec.count)
-				m += float64(c) * ec.function(p)
+				m += float64(c) * p * ec.function(p)
 			}
 		}
 	}

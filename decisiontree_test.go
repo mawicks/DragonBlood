@@ -2,6 +2,7 @@ package DragonBlood_test
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	db "github.com/mawicks/DragonBlood"
@@ -23,6 +24,7 @@ func TestDecisionTree(test *testing.T) {
 	dt := db.NewDecisionTree()
 
 	// Build a regression tree with the continuous target
+	log.Printf("Regression tree; continuous target variables (really a regression)")
 	dt.Fit(dtFeatures, continuousTarget, db.NewMSECriterionFactory())
 	fmt.Printf("%v\n", dt.Importances())
 
@@ -38,27 +40,31 @@ func TestDecisionTree(test *testing.T) {
 		}
 	}
 
+	// Grow a *regression* tree using categorical target but with
+	// MSE criterion (as if it were a continuous target)
+	log.Printf("Regression tree; categorical target")
+	dt.Fit(dtFeatures, categoricalTarget, db.NewMSECriterionFactory())
+	fmt.Printf("%v\n", dt.Importances())
+
 	tEstimate = dt.Predict([]db.Feature{x, y, z})
 
-	if len(tEstimate) != continuousTarget.Len() {
-		test.Errorf("dt.Predict() returned result of length: %d; expected %d", len(tEstimate), continuousTarget.Len())
+	if len(tEstimate) != categoricalTarget.Len() {
+		test.Errorf("dt.Predict() returned result of length: %d; expected %d", len(tEstimate), categoricalTarget.Len())
 	}
 
 	for i, te := range tEstimate {
-		if te != continuousTarget.Value(i) {
-			test.Errorf("Row %d: predicted %v; actual %v", i, te, continuousTarget.Value(i))
+		if te != categoricalTarget.Value(i) {
+			test.Errorf("Row %d: predicted %v; actual %v", i, te, categoricalTarget.Value(i))
 		}
 	}
 
-	// Grow a tree using categorical target with MSE criterion
-	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory())
-	fmt.Printf("%v\n", dt.Importances())
-
 	// Repeat using categorical target with Gini criterion
+	log.Printf("Classification tree (gini); categorical target")
 	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory())
 	fmt.Printf("%v\n", dt.Importances())
 
 	// Repeat using categoricalTarget and entropy criterion
+	log.Printf("Classification tree (entropy); categorical target")
 	dt.Fit(dtFeatures, categoricalTarget, db.NewEntropyCriterionFactory())
 	fmt.Printf("%v\n", dt.Importances())
 
