@@ -24,6 +24,7 @@ func TestDecisionTree(test *testing.T) {
 	dt := db.NewDecisionTree()
 
 	// Build a regression tree with the continuous target
+	log.Printf("Regression tree; continuous target variables (really a regression)")
 	dt.Fit(dtFeatures, continuousTarget, db.NewMSECriterionFactory())
 	fmt.Printf("%v\n", dt.Importances())
 
@@ -39,31 +40,32 @@ func TestDecisionTree(test *testing.T) {
 		}
 	}
 
+	// Grow a *regression* tree using categorical target but with
+	// MSE criterion (as if it were a continuous target)
+	log.Printf("Regression tree; categorical target")
+	dt.Fit(dtFeatures, categoricalTarget, db.NewMSECriterionFactory())
+	fmt.Printf("%v\n", dt.Importances())
+
 	tEstimate = dt.Predict([]db.Feature{x, y, z})
 
-	if len(tEstimate) != continuousTarget.Len() {
-		test.Errorf("dt.Predict() returned result of length: %d; expected %d", len(tEstimate), continuousTarget.Len())
+	if len(tEstimate) != categoricalTarget.Len() {
+		test.Errorf("dt.Predict() returned result of length: %d; expected %d", len(tEstimate), categoricalTarget.Len())
 	}
 
 	for i, te := range tEstimate {
-		if te != continuousTarget.Value(i) {
-			test.Errorf("Row %d: predicted %v; actual %v", i, te, continuousTarget.Value(i))
+		if te != categoricalTarget.Value(i) {
+			test.Errorf("Row %d: predicted %v; actual %v", i, te, categoricalTarget.Value(i))
 		}
 	}
 
-	// Grow a tree using continuous target with MSE criterion
-	log.Print("Continuous target")
-	dt.Fit(dtFeatures, continuousTarget, db.NewMSECriterionFactory())
-	fmt.Printf("%v\n", dt.Importances())
-
 	// Repeat using categorical target with Gini criterion
-	log.Print("Categorical target - gini splitting")
-	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory(categoricalTarget.Range()))
+	log.Printf("Classification tree (gini); categorical target")
+	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory(categoricalTarget.Len()))
 	fmt.Printf("%v\n", dt.Importances())
 
 	// Repeat using categoricalTarget and entropy criterion
-	log.Print("Categorical target - entropy splitting")
-	dt.Fit(dtFeatures, categoricalTarget, db.NewEntropyCriterionFactory(categoricalTarget.Range()))
+	log.Printf("Classification tree (entropy); categorical target")
+	dt.Fit(dtFeatures, categoricalTarget, db.NewEntropyCriterionFactory(categoricalTarget.Len()))
 	fmt.Printf("%v\n", dt.Importances())
 
 	tEstimate = dt.Predict([]db.Feature{x, y, z})
