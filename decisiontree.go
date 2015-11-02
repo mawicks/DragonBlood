@@ -250,7 +250,8 @@ func dtSelectSplits(
 	nodeSplits := make([]*SplitPair, 0, len(splittableNodes))
 
 	improvingSplits := make([]*FeatureSplit, 0, len(candidateSplitsByFeature))
-	log.Print("Selected feature/split by eligible node: ")
+	// FIXME
+	//	log.Print("Selected feature/split by eligible node: ")
 	for inode, node := range splittableNodes {
 		// For this node, build list of feature splits
 		// that reduce the metric
@@ -290,7 +291,8 @@ func dtSelectSplits(
 		}
 		nodeSplits = append(nodeSplits, newPair)
 
-		bestSplit.Dump()
+		// FIXME
+		//bestSplit.Dump()
 	}
 	return nextSplittableNodes, nodeSplits
 }
@@ -309,7 +311,8 @@ func (dtg *decisionTreeGrower) grow(features []OrderedFeature, target Feature, b
 
 	var nextSplittableNodes []*DecisionTreeNode
 	for splittableNodes := []*DecisionTreeNode{root}; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
-		log.Printf("*** New Generation ***")
+		// FIXME
+		// log.Printf("*** New Generation ***")
 		// FIXME
 		//		log.Printf("splittableNodeMembership: %v", splittableNodeMembership)
 

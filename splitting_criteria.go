@@ -86,59 +86,61 @@ func (mp MSECriterion) Dump(string) {}
 
 // Definitions associated with entropy splitting criterion
 
-type EntropyCriterionFactory struct{}
+type EntropyCriterionFactory struct {
+	numValues int
+}
 
-func NewEntropyCriterionFactory() EntropyCriterionFactory {
-	return EntropyCriterionFactory{}
+func NewEntropyCriterionFactory(numValues int) EntropyCriterionFactory {
+	return EntropyCriterionFactory{numValues}
 }
 
 func (cf EntropyCriterionFactory) New() DecisionTreeSplittingCriterion {
-	return NewCategoricalCriterion(func(p float64) float64 { return -math.Log2(float64(p)) })
+	return NewCategoricalCriterion(cf.numValues, func(p float64) float64 { return -math.Log2(float64(p)) })
 }
 
-type GiniCriterionFactory struct{}
+type GiniCriterionFactory struct {
+	numValues int
+}
 
-func NewGiniCriterionFactory() GiniCriterionFactory {
-	return GiniCriterionFactory{}
+func NewGiniCriterionFactory(numValues int) GiniCriterionFactory {
+	return GiniCriterionFactory{numValues}
 }
 func (cf GiniCriterionFactory) New() DecisionTreeSplittingCriterion {
-	return NewCategoricalCriterion(func(p float64) float64 { return (1 - p) })
+	return NewCategoricalCriterion(cf.numValues, func(p float64) float64 { return (1 - p) })
 }
 
 type CategoricalCriterion struct {
 	count  int
-	counts map[float64]int
+	counts []int
 	// The categorical node metric is assumed to have the form sum_i count_i function(p_i)
 	// For gini: function(p) = (1 - p)
 	// For entropy: function(p) = - log2(p)
 	function func(float64) float64
 }
 
-func NewCategoricalCriterion(f func(float64) float64) *CategoricalCriterion {
+func NewCategoricalCriterion(numValues int, f func(float64) float64) *CategoricalCriterion {
 	return &CategoricalCriterion{
 		0,
-		make(map[float64]int, 10),
+		make([]int, numValues),
 		f,
 	}
 }
 
 func (ec *CategoricalCriterion) Add(x float64) {
-	ec.counts[x] += 1
+	ec.counts[int(x)] += 1
 	ec.count += 1
 }
 
 func (ec *CategoricalCriterion) Subtract(x float64) {
+	intx := int(x)
 	if ec.count <= 0 {
 		panic("Subtract() without corresponding Add()")
 	}
-	if ec.counts[x] <= 0 {
+	if ec.counts[intx] <= 0 {
 		panic(fmt.Sprintf("Subtract() without corresponding Add() for item %v", x))
 	}
 	ec.count -= 1
-	ec.counts[x] -= 1
-	if ec.counts[x] <= 0 {
-		delete(ec.counts, x)
-	}
+	ec.counts[intx] -= 1
 }
 
 func (ec *CategoricalCriterion) Count() int {
@@ -149,10 +151,10 @@ func (ec *CategoricalCriterion) Prediction() (prediction float64) {
 	prediction = math.NaN()
 	maxCount := 0
 
-	for x, c := range ec.counts {
+	for intx, c := range ec.counts {
 		if c > maxCount {
 			maxCount = c
-			prediction = x
+			prediction = float64(intx)
 		}
 	}
 
@@ -173,7 +175,7 @@ func (ec *CategoricalCriterion) Metric() float64 {
 }
 
 func (ec *CategoricalCriterion) Copy() DecisionTreeSplittingCriterion {
-	new := NewCategoricalCriterion(ec.function)
+	new := NewCategoricalCriterion(len(ec.counts), ec.function)
 	for k, v := range ec.counts {
 		new.counts[k] = v
 	}

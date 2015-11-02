@@ -13,7 +13,7 @@ func TestDecisionTree(test *testing.T) {
 	z := db.NewNumericFeature(1, 1, 1, 1, 2, 2, 2, 2)
 
 	continuousTarget := db.NewNumericFeature(3, 0, 3, 1, 7, 6, 5, -1)
-	categoricalTarget := db.NewNumericFeature(1, 0, 1, 0, 1, 1, 1, 0)
+	categoricalTarget := db.NewCategoricalFeature("1", "0", "1", "0", "1", "1", "1", "0")
 
 	dtFeatures := []db.OrderedFeature{}
 	for _, f := range []*db.NumericFeature{x, y, z} {
@@ -51,15 +51,15 @@ func TestDecisionTree(test *testing.T) {
 	}
 
 	// Grow a tree using categorical target with MSE criterion
-	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory())
+	dt.Fit(dtFeatures, continuousTarget, db.NewMSECriterionFactory())
 	fmt.Printf("%v\n", dt.Importances())
 
 	// Repeat using categorical target with Gini criterion
-	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory())
+	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory(categoricalTarget.Range()))
 	fmt.Printf("%v\n", dt.Importances())
 
 	// Repeat using categoricalTarget and entropy criterion
-	dt.Fit(dtFeatures, categoricalTarget, db.NewEntropyCriterionFactory())
+	dt.Fit(dtFeatures, categoricalTarget, db.NewEntropyCriterionFactory(categoricalTarget.Range()))
 	fmt.Printf("%v\n", dt.Importances())
 
 	tEstimate = dt.Predict([]db.Feature{x, y, z})
@@ -69,8 +69,8 @@ func TestDecisionTree(test *testing.T) {
 	}
 
 	for i, te := range tEstimate {
-		if te != categoricalTarget.Value(i) {
-			test.Errorf("Row %d: predicted %v; actual %v", i, te, continuousTarget.Value(i))
+		if te != categoricalTarget.NumericValue(i) {
+			test.Errorf("Row %d: predicted %v; actual %v", i, te, categoricalTarget.Value(i))
 		}
 	}
 }

@@ -10,7 +10,7 @@ import (
 func TestStringTable(test *testing.T) {
 	test_strings := []string{"a", "b", "c", "d", "e"}
 
-	table := db.NewStringTable()
+	table := db.NewCodec()
 
 	// Map every string twice.  During the first cycle, the string
 	// should not be found.  During the second cycle it should be

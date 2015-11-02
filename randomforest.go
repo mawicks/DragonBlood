@@ -47,7 +47,7 @@ func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature, 
 
 	for i := 0; i < rf.nTrees; i++ {
 		bag := NewBag(features[0].Len())
-		log.Printf("Next Fit()\n")
+		log.Printf("Next Fit: %d\n", i)
 		//		log.Printf("   --- bag: %v", bag)
 
 		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag, oobPrediction, af))

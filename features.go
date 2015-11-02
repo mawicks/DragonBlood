@@ -46,36 +46,35 @@ type OrderedFeature interface {
 	InOrder(int) int
 }
 
-// attributeIndex
-type attributeIndex struct {
-	attribute float64
-	index     int
-}
-
-// attributeIndexSlice
-type attributeIndexSlice []attributeIndex
-
-func (rfp attributeIndexSlice) Swap(i, j int) { rfp[i], rfp[j] = rfp[j], rfp[i] }
-func (rfp attributeIndexSlice) Len() int      { return len(rfp) }
-func (rfp attributeIndexSlice) Less(i, j int) bool {
-	if math.IsNaN(rfp[j].attribute) {
-		return true
-	} else if math.IsNaN(rfp[i].attribute) {
-		return false
-	} else {
-		return rfp[i].attribute < rfp[j].attribute
-	}
-}
-
 // NumericFeature implements OrderedFeature (and Feature)
 type NumericFeature struct {
-	values     []float64
-	orderIndex attributeIndexSlice
+	values []float64
+	order  []int
 }
 
 func NewNumericFeature(x ...float64) *NumericFeature {
-	return &NumericFeature{x, nil}
+	order := make([]int, 0, len(x))
+	values := make([]float64, 0, len(x))
+	for _, x := range x {
+		order = append(order, len(order))
+		values = append(values, x)
+	}
+	return &NumericFeature{values, order}
 }
+
+func (nf *NumericFeature) Swap(i, j int) { nf.order[i], nf.order[j] = nf.order[j], nf.order[i] }
+
+func (nf *NumericFeature) Less(i, j int) bool {
+	if math.IsNaN(nf.values[nf.order[j]]) {
+		return true
+	} else if math.IsNaN(nf.values[nf.order[i]]) {
+		return false
+	} else {
+		return nf.values[nf.order[i]] < nf.values[nf.order[j]]
+	}
+}
+
+func (nf *NumericFeature) Len() int { return len(nf.values) }
 
 func (nf *NumericFeature) Add(anyValues ...interface{}) {
 	value := math.NaN()
@@ -92,6 +91,7 @@ func (nf *NumericFeature) Add(anyValues ...interface{}) {
 			value, _ = strconv.ParseFloat(any, 64)
 		}
 		nf.values = append(nf.values, value)
+		nf.order = append(nf.order, len(nf.order))
 	}
 }
 
@@ -109,45 +109,36 @@ func (nf *NumericFeature) NumericValue(index int) float64 { return nf.values[ind
 func (nf *NumericFeature) Decode(x float64) interface{}   { return x }
 func (nf *NumericFeature) Value(index int) interface{}    { return nf.values[index] }
 
-func (nf *NumericFeature) Len() int { return len(nf.values) }
-
 func (nf *NumericFeature) Prepare() {
-	nf.orderIndex = nil
-	for i, v := range nf.values {
-		nf.orderIndex = append(nf.orderIndex, attributeIndex{v, i})
-	}
-	sort.Sort(nf.orderIndex)
+	sort.Sort(nf)
 }
 
 func (nf *NumericFeature) InOrder(index int) int {
-	return nf.orderIndex[index].index
+	return nf.order[index]
 }
-
-type intAttributeIndex struct {
-	attribute int
-	index     int
-}
-
-type intAttributeIndexSlice []intAttributeIndex
 
 // CategoricalFeature implements Feature
 type CategoricalFeature struct {
-	stringTable StringTable
-	values      []int
-	orderIndex  intAttributeIndexSlice
+	codec  Codec
+	values []int
+	order  []int
 }
 
 func NewCategoricalFeature(anyValues ...interface{}) *CategoricalFeature {
-	st := NewStringTable()
+	st := NewCodec()
 	new := &CategoricalFeature{st, nil, nil}
-	if anyValues != nil {
-		new.Add(anyValues...)
-	}
+	new.Add(anyValues...)
 	return new
 }
 
+func (cf *CategoricalFeature) Swap(i, j int) { cf.order[i], cf.order[j] = cf.order[j], cf.order[i] }
+func (cf *CategoricalFeature) Len() int      { return len(cf.values) }
+func (cf *CategoricalFeature) Less(i, j int) bool {
+	return cf.values[cf.order[i]] < cf.values[cf.order[j]]
+}
+
 func (cf *CategoricalFeature) Categories() int {
-	return cf.stringTable.Len()
+	return cf.codec.Len()
 }
 
 func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
@@ -162,8 +153,9 @@ func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
 
 func (cf *CategoricalFeature) AddFromString(strings ...string) {
 	for _, s := range strings {
-		m, _ := cf.stringTable.Encode(s)
+		m, _ := cf.codec.Encode(s)
 		cf.values = append(cf.values, m)
+		cf.order = append(cf.order, len(cf.order))
 	}
 }
 
@@ -172,33 +164,23 @@ func (cf *CategoricalFeature) NumericValue(index int) float64 {
 }
 
 func (cf *CategoricalFeature) Decode(x float64) interface{} {
-	return cf.stringTable.Decode(int(x))
+	return cf.codec.Decode(int(x))
 }
 
 func (cf *CategoricalFeature) Value(index int) interface{} {
-	return cf.stringTable.Decode(cf.values[index])
+	return cf.codec.Decode(cf.values[index])
 }
 
-func (cf *CategoricalFeature) Len() int { return len(cf.values) }
-
-func (ais intAttributeIndexSlice) Swap(i, j int)      { ais[i], ais[j] = ais[j], ais[i] }
-func (ais intAttributeIndexSlice) Len() int           { return len(ais) }
-func (ais intAttributeIndexSlice) Less(i, j int) bool { return ais[i].attribute < ais[j].attribute }
-
 func (cf *CategoricalFeature) Prepare() {
-	cf.orderIndex = nil
-	for i, v := range cf.values {
-		cf.orderIndex = append(cf.orderIndex, intAttributeIndex{v, i})
-	}
-	sort.Sort(cf.orderIndex)
+	sort.Sort(cf)
 }
 
 func (cf *CategoricalFeature) InOrder(index int) int {
-	return cf.orderIndex[index].index
+	return cf.order[index]
 }
 
-func (cf *CategoricalFeature) Values() int {
-	return len(cf.values)
+func (cf *CategoricalFeature) Range() int {
+	return cf.codec.Len()
 }
 
 // Deprecated
@@ -224,5 +206,5 @@ func NewCategoricalFeatureFactory() FeatureFactory { return CategoricalFeatureFa
 
 // Deprecated
 func (CategoricalFeatureFactory) New() Feature {
-	return NewCategoricalFeature(NewStringTable())
+	return NewCategoricalFeature(NewCodec())
 }

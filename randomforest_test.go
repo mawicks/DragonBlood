@@ -12,7 +12,8 @@ func TestRandomForest(test *testing.T) {
 	y := db.NewNumericFeature(1, 2, 1, 2, 1, 2, 1, 2)
 	z := db.NewNumericFeature(1, 1, 1, 1, 2, 2, 2, 2)
 
-	t := db.NewNumericFeature(0, 0, 0, 0, 1, 1, 1, 1)
+	numerict := db.NewNumericFeature(0, 0, 0, 0, 1, 1, 1, 1)
+	categoricalt := db.NewCategoricalFeature("0", "0", "0", "0", "1", "1", "1", "1")
 	//	t.Add(3, 0, 3, 1, 7, 6, 5, -1)
 
 	rfFeatures := []db.OrderedFeature{}
@@ -26,41 +27,41 @@ func TestRandomForest(test *testing.T) {
 
 	mf = db.NewMSECriterionFactory()
 
-	oob := rf.Fit(rfFeatures, t, mf)
+	oob := rf.Fit(rfFeatures, numerict, mf)
 
 	tEstimate := rf.Predict([]db.Feature{x, y, z})
 
-	if len(tEstimate) != t.Len() {
-		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
+	if len(tEstimate) != numerict.Len() {
+		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), numerict.Len())
 	}
 
 	fmt.Printf("oob preds: %v\n", oob)
 
 	for i, te := range tEstimate {
-		fmt.Printf("predicted: %v; actual: %v\n", te, t.Value(i))
+		fmt.Printf("predicted: %v; actual: %v\n", te, numerict.Value(i))
 		//		if te != t.Value(i) {
-		//			test.Errorf("Row %d: predicted %v; actual %v", i, te, t.Value///(i))
+		//			test.Errorf("Row %d: predicted %v; actual %v", i, te, numerict.Value///(i))
 		//		}
 	}
 
 	fmt.Printf("feature importances (forest): %v\n", rf.Importances())
 
-	mf = db.NewEntropyCriterionFactory()
+	mf = db.NewEntropyCriterionFactory(categoricalt.Range())
 
-	oob = rf.Fit(rfFeatures, t, mf)
+	oob = rf.Fit(rfFeatures, categoricalt, mf)
 
 	tEstimate = rf.Predict([]db.Feature{x, y, z})
 
-	if len(tEstimate) != t.Len() {
-		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), t.Len())
+	if len(tEstimate) != categoricalt.Len() {
+		test.Errorf("rf.Predict() returned result of length: %d; expected %d", len(tEstimate), categoricalt.Len())
 	}
 
 	fmt.Printf("oob preds: %v\n", oob)
 
 	for i, te := range tEstimate {
-		fmt.Printf("predicted: %v; actual: %v\n", te, t.Value(i))
+		fmt.Printf("predicted: %v; actual: %v\n", te, categoricalt.Value(i))
 		//		if te != t.Value(i) {
-		//			test.Errorf("Row %d: predicted %v; actual %v", i, te, t.Value///(i))
+		//			test.Errorf("Row %d: predicted %v; actual %v", i, te, categoricalt.Value///(i))
 		//		}
 	}
 
