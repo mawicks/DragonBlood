@@ -2,6 +2,7 @@ package DragonBlood_test
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	db "github.com/mawicks/DragonBlood"
@@ -50,15 +51,18 @@ func TestDecisionTree(test *testing.T) {
 		}
 	}
 
-	// Grow a tree using categorical target with MSE criterion
+	// Grow a tree using continuous target with MSE criterion
+	log.Print("Continuous target")
 	dt.Fit(dtFeatures, continuousTarget, db.NewMSECriterionFactory())
 	fmt.Printf("%v\n", dt.Importances())
 
 	// Repeat using categorical target with Gini criterion
+	log.Print("Categorical target - gini splitting")
 	dt.Fit(dtFeatures, categoricalTarget, db.NewGiniCriterionFactory(categoricalTarget.Range()))
 	fmt.Printf("%v\n", dt.Importances())
 
 	// Repeat using categoricalTarget and entropy criterion
+	log.Print("Categorical target - entropy splitting")
 	dt.Fit(dtFeatures, categoricalTarget, db.NewEntropyCriterionFactory(categoricalTarget.Range()))
 	fmt.Printf("%v\n", dt.Importances())
 
