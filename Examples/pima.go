@@ -23,7 +23,7 @@ func (handler *Handler) Header(header []string) {
 	handler.header = header
 	handler.columns = make([]*db.NumericFeature, len(header))
 	for i := range handler.columns {
-		handler.columns[i] = db.NewNumericFeature(nil)
+		handler.columns[i] = db.NewNumericFeature()
 	}
 }
 
@@ -81,7 +81,7 @@ func main() {
 
 	importances := rf.Importances()
 
-	oobGini := rf.Fit(handler.features, handler.target, db.NewGiniCriterionFactory())
+	oobGini := rf.Fit(handler.features, handler.target, db.NewGiniCriterionFactory(handler.target.Len()))
 	accuracyGini := db.Accuracy(oobGini, targetNumeric)
 
 	fmt.Printf("importances: %v\n", importances)
