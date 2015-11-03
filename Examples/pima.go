@@ -74,17 +74,19 @@ func main() {
 	rf := db.NewRandomForest(100).SetMaxFeatures(5).SetMinLeafSize(29)
 	//	mf := db.NewEntropyCriterionFactory()
 	oobScores := rf.Fit(handler.features, handler.target, db.NewMSECriterionFactory())
+	importances := rf.Importances()
+	fmt.Printf("importances: %v\n", importances)
 
 	auc := db.ROCArea(oobScores, targetBool)
 	mse := db.MSE(oobScores, targetNumeric)
 	variance := stats.Variance(targetNumeric)
 
-	importances := rf.Importances()
-
 	oobGini := rf.Fit(handler.features, handler.target, db.NewGiniCriterionFactory(handler.target.Len()))
+	importances = rf.Importances()
+	fmt.Printf("importances: %v\n", importances)
+
 	accuracyGini := db.Accuracy(oobGini, targetNumeric)
 
-	fmt.Printf("importances: %v\n", importances)
 	//	fmt.Printf("oob(gini): %v\n", oobGini)
 	//	fmt.Printf("target: %v\n", targetNumeric)
 
