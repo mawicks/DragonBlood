@@ -254,7 +254,7 @@ func dtSelectSplits(
 
 	improvingSplits := make([]*FeatureSplit, 0, len(candidateSplitsByFeature))
 	// FIXME
-	//	log.Print("Selected feature/split by eligible node: ")
+	log.Print("Selected feature/split by eligible node: ")
 	for inode, node := range splittableNodes {
 		// For this node, build list of feature splits
 		// that reduce the metric
@@ -295,7 +295,7 @@ func dtSelectSplits(
 		nodeSplits = append(nodeSplits, newPair)
 
 		// FIXME
-		//bestSplit.Dump()
+		bestSplit.Dump()
 	}
 	return nextSplittableNodes, nodeSplits
 }

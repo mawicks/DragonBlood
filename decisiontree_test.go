@@ -53,7 +53,7 @@ func TestDecisionTree(test *testing.T) {
 	}
 
 	for i, te := range tEstimate {
-		if te != categoricalTarget.Value(i) {
+		if te != categoricalTarget.NumericValue(i) {
 			test.Errorf("Row %d: predicted %v; actual %v", i, te, categoricalTarget.Value(i))
 		}
 	}

@@ -59,7 +59,7 @@ func TestRandomForest(test *testing.T) {
 	fmt.Printf("oob preds: %v\n", oob)
 
 	for i, te := range tEstimate {
-		fmt.Printf("predicted: %v; actual: %v\n", te, categoricalt.Value(i))
+		fmt.Printf("predicted: %v; actual: %v\n", te, categoricalt.NumericValue(i))
 		//		if te != t.Value(i) {
 		//			test.Errorf("Row %d: predicted %v; actual %v", i, te, categoricalt.Value///(i))
 		//		}
