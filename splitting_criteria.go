@@ -7,7 +7,7 @@ import (
 	"github.com/mawicks/DragonBlood/stats"
 )
 
-type DecisionTreeSplittingCriterion interface {
+type DTSplittingCriterion interface {
 	// Add() updates the internal state associated with adding x to a node.
 	Add(x float64)
 
@@ -29,15 +29,15 @@ type DecisionTreeSplittingCriterion interface {
 	// metric, but mean-squared-error is not.
 	Metric() float64
 
-	// Copy() returns a new DecisionTreePredictor of the same type
+	// Copy() returns a new DTSplittingCriterion of the same type
 	// with identical internal state.
-	Copy() DecisionTreeSplittingCriterion
+	Copy() DTSplittingCriterion
 
 	Dump(string)
 }
 
-type DecisionTreeSplittingCriterionFactory interface {
-	New() DecisionTreeSplittingCriterion
+type DTSplittingCriterionFactory interface {
+	New() DTSplittingCriterion
 }
 
 type MSECriterionFactory struct{}
@@ -46,7 +46,7 @@ func NewMSECriterionFactory() MSECriterionFactory {
 	return MSECriterionFactory{}
 }
 
-func (cf MSECriterionFactory) New() DecisionTreeSplittingCriterion {
+func (cf MSECriterionFactory) New() DTSplittingCriterion {
 	return NewMSECriterion()
 }
 
@@ -78,7 +78,7 @@ func (mp MSECriterion) Metric() float64 {
 	return mp.varianceAccumulator.SumSquaredError()
 }
 
-func (mp MSECriterion) Copy() DecisionTreeSplittingCriterion {
+func (mp MSECriterion) Copy() DTSplittingCriterion {
 	return MSECriterion{mp.varianceAccumulator.Copy()}
 }
 
@@ -94,7 +94,7 @@ func NewEntropyCriterionFactory(numValues int) EntropyCriterionFactory {
 	return EntropyCriterionFactory{numValues}
 }
 
-func (cf EntropyCriterionFactory) New() DecisionTreeSplittingCriterion {
+func (cf EntropyCriterionFactory) New() DTSplittingCriterion {
 	return NewCategoricalCriterion(cf.numValues, func(p float64) float64 { return -math.Log2(float64(p)) })
 }
 
@@ -105,7 +105,7 @@ type GiniCriterionFactory struct {
 func NewGiniCriterionFactory(numValues int) GiniCriterionFactory {
 	return GiniCriterionFactory{numValues}
 }
-func (cf GiniCriterionFactory) New() DecisionTreeSplittingCriterion {
+func (cf GiniCriterionFactory) New() DTSplittingCriterion {
 	return NewCategoricalCriterion(cf.numValues, func(p float64) float64 { return (1 - p) })
 }
 
@@ -174,7 +174,7 @@ func (ec *CategoricalCriterion) Metric() float64 {
 	return m
 }
 
-func (ec *CategoricalCriterion) Copy() DecisionTreeSplittingCriterion {
+func (ec *CategoricalCriterion) Copy() DTSplittingCriterion {
 	new := NewCategoricalCriterion(len(ec.counts), ec.function)
 	for k, v := range ec.counts {
 		new.counts[k] = v

@@ -8,7 +8,7 @@ import (
 
 type RandomForestRegressor struct {
 	nTrees    int
-	trees     []*DecisionTreeNode
+	trees     []*DTNode
 	nFeatures int
 	grower    *decisionTreeGrower
 }
@@ -16,7 +16,7 @@ type RandomForestRegressor struct {
 func NewRandomForest(nTrees int) *RandomForestRegressor {
 	return &RandomForestRegressor{
 		nTrees,
-		make([]*DecisionTreeNode, 0, nTrees),
+		make([]*DTNode, 0, nTrees),
 		0,
 		&decisionTreeGrower{MaxFeatures: math.MaxInt32, MinLeafSize: 1},
 	}
@@ -33,16 +33,12 @@ func (rf *RandomForestRegressor) SetMaxFeatures(m int) *RandomForestRegressor {
 	return rf
 }
 
-func (rf *RandomForestRegressor) Fit(features []OrderedFeature, target Feature, af DecisionTreeSplittingCriterionFactory) []float64 {
+func (rf *RandomForestRegressor) Fit(features []DTFeature, target DTTarget, af DTSplittingCriterionFactory) []float64 {
 	rf.nFeatures = len(features)
 
-	oobPrediction := make([]DecisionTreeSplittingCriterion, features[0].Len())
+	oobPrediction := make([]DTSplittingCriterion, features[0].Len())
 	for i := range oobPrediction {
 		oobPrediction[i] = af.New()
-	}
-
-	for _, f := range features {
-		f.Prepare()
 	}
 
 	for i := 0; i < rf.nTrees; i++ {
