@@ -40,16 +40,23 @@ type DTSplittingCriterionFactory interface {
 	New() DTSplittingCriterion
 }
 
-type MSECriterionFactory struct{}
+// Definitions associated with MSE splitting criterion
 
-func NewMSECriterionFactory() MSECriterionFactory {
-	return MSECriterionFactory{}
+// MSECriterionTarget is a decorator for a Feature to allow it to be used as a target
+// where splits are evaluated against the MSECriterion
+type MSECriterionTarget struct {
+	Feature
 }
 
-func (cf MSECriterionFactory) New() DTSplittingCriterion {
+func NewMSECriterionTarget(target Feature) DTTarget {
+	return &MSECriterionTarget{target}
+}
+
+func (*MSECriterionTarget) NewSplittingCriterion() DTSplittingCriterion {
 	return NewMSECriterion()
 }
 
+// MSECriterion implements DTSplittingCriterion
 type MSECriterion struct {
 	varianceAccumulator *stats.VarianceAccumulator
 }
@@ -84,29 +91,34 @@ func (mp MSECriterion) Copy() DTSplittingCriterion {
 
 func (mp MSECriterion) Dump(string) {}
 
-// Definitions associated with entropy splitting criterion
+// Definitions associated with categorical splitting criteria
 
-type EntropyCriterionFactory struct {
-	numValues int
+// EntropyCriterionTarget is a decorator for a CategoricalFeature to allow it to be used as a target
+// where splits are evaluated against the entropy criterion (information gain)
+type EntropyCriterionTarget struct {
+	CategoricalFeature
 }
 
-func NewEntropyCriterionFactory(numValues int) EntropyCriterionFactory {
-	return EntropyCriterionFactory{numValues}
+func NewEntropyCriterionTarget(target CategoricalFeature) DTTarget {
+	return &EntropyCriterionTarget{target}
 }
 
-func (cf EntropyCriterionFactory) New() DTSplittingCriterion {
-	return NewCategoricalCriterion(cf.numValues, func(p float64) float64 { return -math.Log2(float64(p)) })
+func (target *EntropyCriterionTarget) NewSplittingCriterion() DTSplittingCriterion {
+	return NewCategoricalCriterion(target.Range(), func(p float64) float64 { return -math.Log2(float64(p)) })
 }
 
-type GiniCriterionFactory struct {
-	numValues int
+// GiniCriterionTarget is a decorator for a CategoricalFeature to allow it to be used as a target
+// where splits are evaluated against the Gini criterion.
+type GiniCriterionTarget struct {
+	CategoricalFeature
 }
 
-func NewGiniCriterionFactory(numValues int) GiniCriterionFactory {
-	return GiniCriterionFactory{numValues}
+func NewGiniCriterionTarget(target CategoricalFeature) DTTarget {
+	return &GiniCriterionTarget{target}
 }
-func (cf GiniCriterionFactory) New() DTSplittingCriterion {
-	return NewCategoricalCriterion(cf.numValues, func(p float64) float64 { return (1 - p) })
+
+func (target *GiniCriterionTarget) NewSplittingCriterion() DTSplittingCriterion {
+	return NewCategoricalCriterion(target.Range(), func(p float64) float64 { return (1 - p) })
 }
 
 type CategoricalCriterion struct {
