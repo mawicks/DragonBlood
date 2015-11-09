@@ -9,9 +9,20 @@ import (
 	"os"
 )
 
+type DTCollapser interface {
+	Add(item int)
+	BestSplit() *SplitInfo
+}
+
+type DTFeature interface {
+	Feature
+	NewCollapser(target Feature, af DecisionTreeSplittingCriterionFactory) DTCollapser
+}
+
 // Interfaces
 type Splitter interface {
 	Split(float64) bool
+	// Return interpretable representation of Splitter.
 	String() string
 }
 
@@ -157,42 +168,59 @@ func (a *DecisionTreeSplitEvaluator) BestSplit() *SplitInfo {
 	return result
 }
 
-// dtOptimalSplit computes an optimal split for feature f using target.
-// nodeMembership maps each training unit to the index of splittableNode to which it currently belongs.
-// nodeCount is the number of splittableNodes (one more than the max value of nodeMembership)
-// bag maps each unit to the number of times that unit occurs in the current bag.
-// minSize is the minimum size for a leaf node.
-func dtOptimalSplit(
-	f OrderedFeature,
-	target Feature,
-	nodeMembership []int,
-	bag Bag,
-	splittableNodes []*DecisionTreeNode,
-	af DecisionTreeSplittingCriterionFactory,
-	accums []DecisionTreeSplittingCriterion, minLeafSize int) []*SplitInfo {
-
-	accumulators := make([]*DecisionTreeSplitEvaluator, len(accums))
-	for i := range accums {
-		accumulators[i] = NewDecisionTreeSplitEvaluator(af, accums[i].Copy(), minLeafSize)
+func dtBestSplit(node dtSplittableNode, features []OrderedFeature, target Feature, bag Bag, af DecisionTreeSplittingCriterionFactory, minLeafSize, maxFeatures int) (fs *FeatureSplit) {
+	if maxFeatures > len(features) {
+		maxFeatures = len(features)
 	}
 
+	// Select a random subset of features of size maxFeatures
+	randomFeatures := make([]int, len(features))
+	for i := range features {
+		randomFeatures[i] = i
+	}
+	for i := 0; i < maxFeatures; i++ {
+		j := rand.Intn(len(features) - i)
+		randomFeatures[i], randomFeatures[i+j] = randomFeatures[i+j], randomFeatures[i]
+	}
+	randomFeatures = randomFeatures[0:maxFeatures]
+
+	// Find the random feature with the best optimal split
+	for _, i := range randomFeatures {
+		os := dtOptimalSplit(node, features[i], target, bag, af, minLeafSize)
+		if fs == nil || (os != nil && os.reduction < fs.reduction) {
+			fs = &FeatureSplit{i, *os}
+		}
+	}
+	return fs
+}
+
+// dtOptimalSplit computes an optimal split for node f using the
+// passed feature and target.  bag maps each unit to the number of
+// times that unit occurs in the current bag.  minSize is the minimum
+// size for a leaf node.
+func dtOptimalSplit(
+	node dtSplittableNode,
+	feature OrderedFeature,
+	target Feature,
+	bag Bag,
+	af DecisionTreeSplittingCriterionFactory,
+	minLeafSize int) (result *SplitInfo) {
+
 	// Second pass - move points from right to left and evalute new metric
-	for i := range nodeMembership {
-		iOrdered := f.InOrder(i)
-		if nm := nodeMembership[iOrdered]; nm >= 0 {
+	for i, nm := range node.members {
+		iOrdered := feature.InOrder(i)
+		if nm := node.members[iOrdered]; nm >= 0 {
 			for j := 0; j < bag.Count(iOrdered); j++ {
-				accumulators[nm].Move(f.NumericValue(iOrdered), target.NumericValue(iOrdered))
+				accum.Move(f.NumericValue(iOrdered), target.NumericValue(iOrdered))
 			}
 		}
 	}
+
 	// Collect results from accumulators
-	result := make([]*SplitInfo, len(splittableNodes))
-	for i := range result {
-		if bestSplit := accumulators[i].BestSplit(); bestSplit != nil {
-			result[i] = bestSplit
-		} else {
-			result[i] = nil
-		}
+	if bestSplit := accum.BestSplit(); bestSplit != nil {
+		result = bestSplit
+	} else {
+		result = nil
 	}
 
 	return result
@@ -203,102 +231,36 @@ type decisionTreeGrower struct {
 	MinLeafSize int
 }
 
-func dtInitialize(target Feature, bag Bag, af DecisionTreeSplittingCriterionFactory) (root *DecisionTreeNode, nodeMembership []int) {
-	nodeMembership = make([]int, bag.Len())
-
-	for i := 0; i < bag.Len(); i++ {
-		nodeMembership[i] = 0 // Root node
-		for j := 0; j < bag.Count(i); j++ {
-		}
-	}
-
-	return NewDecisionTreeNode(), nodeMembership
+type dtSplittableNode struct {
+	*DecisionTreeNode
+	members []int
 }
 
-func dtInitialMetrics(target Feature, nodeMembership []int, bag Bag, splittableNodes []*DecisionTreeNode, af DecisionTreeSplittingCriterionFactory) []DecisionTreeSplittingCriterion {
-	accumulators := make([]DecisionTreeSplittingCriterion, len(splittableNodes))
-	for i := range accumulators {
-		accumulators[i] = af.New()
+func dtInitialize(target Feature, bag Bag, af DecisionTreeSplittingCriterionFactory) dtSplittableNode {
+	nodeMembership := make([]int, bag.Len())
+
+	for i := 0; i < bag.Len(); i++ {
+		nodeMembership[i] = i // Root node
 	}
 
+	return dtSplittableNode{NewDecisionTreeNode(), nodeMembership}
+}
+
+func dtAddNodeMetrics(node dtSplittableNode, target Feature, bag Bag, af DecisionTreeSplittingCriterionFactory) {
+	accumulator := af.New()
+
 	// First pass - accumulate stats with all points
-	for i := 0; i < len(nodeMembership); i++ {
-		if nm := nodeMembership[i]; nm >= 0 {
-			for j := 0; j < bag.Count(i); j++ {
-				accumulators[nm].Add(target.NumericValue(i))
-			}
+	for i := 0; i < len(node.members); i++ {
+		nm := node.members[i]
+		for j := 0; j < bag.Count(nm); j++ {
+			accumulator.Add(target.NumericValue(nm))
 		}
 	}
 
-	for i, acc := range accumulators {
-		splittableNodes[i].Prediction = Prediction{acc.Count(), acc.Prediction()}
-	}
-
-	return accumulators
+	node.Prediction = Prediction{accumulator.Count(), accumulator.Prediction()}
 }
 
 type SplitPair struct{ left, right int }
-
-func dtSelectSplits(
-	splittableNodes []*DecisionTreeNode,
-	candidateSplitsByFeature [][]*FeatureSplit,
-	maxFeatures int) ([]*DecisionTreeNode, []*SplitPair) {
-
-	nextSplittableNodes := make([]*DecisionTreeNode, 0, 2*len(splittableNodes))
-	// nodeSplits is generated during each iteration and
-	// contains the next-generation indexes of children of
-	// nodes to be split (left and right values of
-	// SplitPair are indexes of nextSplittableNodes; index
-	// of nodeSplits match those of splittableNodes))
-	nodeSplits := make([]*SplitPair, 0, len(splittableNodes))
-
-	improvingSplits := make([]*FeatureSplit, 0, len(candidateSplitsByFeature))
-	// FIXME
-	log.Print("Selected feature/split by eligible node: ")
-	for inode, node := range splittableNodes {
-		// For this node, build list of feature splits
-		// that reduce the metric
-		improvingSplits = improvingSplits[:0]
-		for _, nodeCandidateSplits := range candidateSplitsByFeature {
-			if nodeCandidateSplits[inode] != nil {
-				improvingSplits = append(improvingSplits, nodeCandidateSplits[inode])
-			}
-		}
-
-		// Consider a random subset of feature splits of size maxFeatures and pick the best of those
-		var bestSplit *FeatureSplit
-		for i := 0; i < maxFeatures && i < len(improvingSplits); i++ {
-			irand := i + rand.Intn(len(improvingSplits)-i)
-			improvingSplits[i], improvingSplits[irand] = improvingSplits[irand], improvingSplits[i]
-			if bestSplit == nil || improvingSplits[i].reduction > bestSplit.reduction {
-				bestSplit = improvingSplits[i]
-			}
-		}
-
-		var newPair *SplitPair = nil
-		if bestSplit != nil {
-			node.feature = bestSplit.feature
-			node.splitter = bestSplit.splitter
-			node.reduction = bestSplit.reduction
-
-			node.Left = NewDecisionTreeNode()
-			node.Right = NewDecisionTreeNode()
-
-			leftIndex := len(nextSplittableNodes)
-			nextSplittableNodes = append(nextSplittableNodes, node.Left)
-
-			rightIndex := len(nextSplittableNodes)
-			nextSplittableNodes = append(nextSplittableNodes, node.Right)
-
-			newPair = &SplitPair{left: leftIndex, right: rightIndex}
-		}
-		nodeSplits = append(nodeSplits, newPair)
-
-		// FIXME
-		bestSplit.Dump()
-	}
-	return nextSplittableNodes, nodeSplits
-}
 
 func (dtg *decisionTreeGrower) grow(features []OrderedFeature, target Feature, bag Bag, oobPrediction []DecisionTreeSplittingCriterion, af DecisionTreeSplittingCriterionFactory) *DecisionTreeNode {
 	maxFeatures := dtg.MaxFeatures
@@ -306,59 +268,45 @@ func (dtg *decisionTreeGrower) grow(features []OrderedFeature, target Feature, b
 		maxFeatures = len(features)
 	}
 
-	root, splittableNodeMembership := dtInitialize(target, bag, af)
+	splittableRoot := dtInitialize(target, bag, af)
 
-	// candidateSplitsByFeature is a fixed length slices that is
+	// candidateSplitsByFeature is a fixed length slice that is
 	// re-used during each iteration
 	candidateSplitsByFeature := make([][]*FeatureSplit, len(features))
 
-	var nextSplittableNodes []*DecisionTreeNode
-	for splittableNodes := []*DecisionTreeNode{root}; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
-		// FIXME
-		//		log.Printf("*** New Generation ***")
-		//		log.Printf("splittableNodeMembership: %v", splittableNodeMembership)
+	var nextSplittableNodes []dtSplittableNode
+	for splittableNodes := []dtSplittableNode{splittableRoot}; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
+		nextSplittableNodes = make([]dtSplittableNode, 0, len(splittableNodes))
+		for _, node := range splittableNodes {
+			bestSplit := dtBestSplit(node, features, target, bag, af, dtg.MinLeafSize, maxFeatures)
+			dtAddNodeMetrics(node, target, bag, af)
+			if bestSplit != nil { // Was an improving split found?
+				node.FeatureSplit = *bestSplit
 
-		accums := dtInitialMetrics(target, splittableNodeMembership, bag, splittableNodes, af)
+				node.Left = NewDecisionTreeNode()
+				node.Right = NewDecisionTreeNode()
 
-		// For each feature find all optimal splits for that feature for each splittable node
-		for i, feature := range features {
-			candidateSplitsByFeature[i] = make([]*FeatureSplit, 0, len(splittableNodes))
-			// FIXME
-			//			log.Printf("Best splits by node, feature %d:\n", i)
-			for _, dtos := range dtOptimalSplit(feature, target, splittableNodeMembership, bag, splittableNodes, af, accums, dtg.MinLeafSize) {
-				var split *FeatureSplit
-				if dtos != nil {
-					split = &FeatureSplit{i, *dtos}
-				}
-				candidateSplitsByFeature[i] = append(candidateSplitsByFeature[i], split)
-				// FIXME
-				//				split.Dump()
-			}
-		}
-
-		var nodeSplits []*SplitPair
-		nextSplittableNodes, nodeSplits = dtSelectSplits(splittableNodes, candidateSplitsByFeature, maxFeatures)
-
-		// Update node membership
-		for i, sn := range splittableNodeMembership {
-			if sn >= 0 {
-				splittableNode := splittableNodes[sn]
-				if splittableNode.feature >= 0 {
-					if splittableNode.splitter.Split(features[splittableNode.feature].NumericValue(i)) { // Left
-						splittableNodeMembership[i] = nodeSplits[sn].left
-					} else { // Right
-						splittableNodeMembership[i] = nodeSplits[sn].right
+				rightOffset := 0
+				for i, member := range node.members {
+					if node.splitter.Split(features[node.feature].NumericValue(member)) { // Left
+						node.members[rightOffset], node.members[i] = node.members[i], node.members[rightOffset]
+						rightOffset += 1
 					}
-				} else { // No split exists --- this record has reached a leaf node.
-					splittableNodeMembership[i] = -1 // An impossible node reference
-					if oobPrediction != nil && bag.Count(i) == 0 {
-						oobPrediction[i].Add(splittableNode.prediction)
+				}
+				nextSplittableNodes = append(nextSplittableNodes, dtSplittableNode{node.Left, node.members[0:rightOffset]})
+				nextSplittableNodes = append(nextSplittableNodes, dtSplittableNode{node.Right, node.members[rightOffset:]})
+
+			} else { // node is a now a leaf node
+				for _, member := range node.members {
+					if oobPrediction != nil && bag.Count(member) == 0 {
+						oobPrediction[member].Add(node.prediction)
 					}
 				}
 			}
 		}
 	}
-	return root
+
+	return splittableRoot.DecisionTreeNode
 }
 
 func (dtg *DecisionTreeNode) Predict(features []Feature) []float64 {
