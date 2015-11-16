@@ -8,7 +8,7 @@ func Isotonic(attribute, target []float64) (x, y []float64) {
 	}
 
 	sortable := NewNumericFeature(attribute...)
-	sortable.Prepare()
+	sortable.Sort()
 
 	type segment struct {
 		start, value float64

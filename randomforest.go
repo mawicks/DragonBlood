@@ -33,12 +33,12 @@ func (rf *RandomForestRegressor) SetMaxFeatures(m int) *RandomForestRegressor {
 	return rf
 }
 
-func (rf *RandomForestRegressor) Fit(features []DTFeature, target DTTarget, af DTSplittingCriterionFactory) []float64 {
+func (rf *RandomForestRegressor) Fit(features []DTFeature, target DTTarget) []float64 {
 	rf.nFeatures = len(features)
 
 	oobPrediction := make([]DTSplittingCriterion, features[0].Len())
 	for i := range oobPrediction {
-		oobPrediction[i] = af.New()
+		oobPrediction[i] = target.NewSplittingCriterion()
 	}
 
 	for i := 0; i < rf.nTrees; i++ {
@@ -46,7 +46,7 @@ func (rf *RandomForestRegressor) Fit(features []DTFeature, target DTTarget, af D
 		log.Printf("Next Fit: %d\n", i)
 		//		log.Printf("   --- bag: %v", bag)
 
-		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag, oobPrediction, af))
+		rf.trees = append(rf.trees, rf.grower.grow(features, target, bag, oobPrediction))
 	}
 
 	result := make([]float64, len(oobPrediction))

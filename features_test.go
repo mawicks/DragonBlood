@@ -49,7 +49,7 @@ func TestNumericFeature(t *testing.T) {
 		}
 	}
 
-	nf.Prepare()
+	nf.Sort()
 
 	ordercheck(0, 3)
 	ordercheck(1, 1)
@@ -67,7 +67,7 @@ func TestCategoricalFeature(t *testing.T) {
 	// Assign to Feature to ensure CategoricalFeature implements Feature
 	cf := db.NewCategoricalFeature()
 
-	testStrings := []string{"alpha", "beta", "delta", "beta", "alpha"}
+	testStrings := []string{"delta", "alpha", "beta", "beta", "gamma"}
 
 	for _, s := range testStrings {
 		cf.AddFromString(s)
@@ -75,7 +75,7 @@ func TestCategoricalFeature(t *testing.T) {
 
 	check := func(index int, expected string) {
 		actual := cf.Value(index).(string)
-		altActual := cf.Decode(cf.NumericValue(index)).(string)
+		altActual := cf.Decode(int(cf.NumericValue(index))).(string)
 		if actual != altActual {
 			t.Errorf("Value(%d) returned %v; Decode(NumericValue(%d) returned %v", index, actual, index, altActual)
 		}
@@ -84,30 +84,32 @@ func TestCategoricalFeature(t *testing.T) {
 		}
 	}
 
-	for i, s := range testStrings {
-		check(i, s)
-	}
-
 	if cf.Len() != len(testStrings) {
 		t.Errorf("Length() returned %d; expecting %d", cf.Len(), 5)
 	}
 
-	ordercheck := func(index int, expected string) {
-		orderedString := cf.Decode(cf.NumericValue(cf.InOrder(index)))
-		if orderedString != expected {
-			t.Errorf("Get(%d) got %s; expecting %s", index, orderedString, expected)
+	cf.OrderEncoding()
+
+	for i, s := range testStrings {
+		check(i, s)
+	}
+
+	ordercheck := func(index int, expected int) {
+		if got := int(cf.NumericValue(index)); got != expected {
+			t.Errorf("Get(%d) got %d; expecting %d", index, got, expected)
 		}
 	}
 
-	cf.Prepare()
+	// "alpha", "beta", "delta", "gamma" should be encoded as
+	// 0, 1, 2, 3 respectively
 
-	ordercheck(0, "alpha")
-	ordercheck(1, "alpha")
-	ordercheck(2, "beta")
-	ordercheck(3, "beta")
-	ordercheck(4, "delta")
+	ordercheck(0, 2) // "delta" should encode to 2
+	ordercheck(1, 0) // "alpha" should encode to 0
+	ordercheck(2, 1) // "beta" should encode to 1
+	ordercheck(3, 1) // "beta" should encode to 1
+	ordercheck(4, 3) // "gamma" should encode to 3
 
-	if n := cf.Categories(); n != 3 {
-		t.Errorf("Expected %d categories; got %d\n", 3, n)
+	if n := cf.Categories(); n != 4 {
+		t.Errorf("Expected %d categories; got %d\n", 4, n)
 	}
 }

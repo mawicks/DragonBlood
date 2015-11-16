@@ -16,18 +16,14 @@ func TestRandomForest(test *testing.T) {
 	categoricalt := db.NewCategoricalFeature("0", "0", "0", "0", "1", "1", "1", "1")
 	//	t.Add(3, 0, 3, 1, 7, 6, 5, -1)
 
-	rfFeatures := []db.OrderedFeature{}
+	rfFeatures := []db.DTFeature{}
 	for _, f := range []*db.NumericFeature{x, y, z} {
-		rfFeatures = append(rfFeatures, f)
+		rfFeatures = append(rfFeatures, db.NewDTNumericFeature(f))
 	}
 
 	rf := db.NewRandomForest(10).SetMaxFeatures(3).SetMinLeafSize(1)
 
-	var mf db.DecisionTreeSplittingCriterionFactory
-
-	mf = db.NewMSECriterionFactory()
-
-	oob := rf.Fit(rfFeatures, numerict, mf)
+	oob := rf.Fit(rfFeatures, db.NewMSECriterionTarget(numerict))
 
 	tEstimate := rf.Predict([]db.Feature{x, y, z})
 
@@ -46,9 +42,7 @@ func TestRandomForest(test *testing.T) {
 
 	fmt.Printf("feature importances (forest): %v\n", rf.Importances())
 
-	mf = db.NewEntropyCriterionFactory(categoricalt.Range())
-
-	oob = rf.Fit(rfFeatures, categoricalt, mf)
+	oob = rf.Fit(rfFeatures, db.NewGiniCriterionTarget(categoricalt))
 
 	tEstimate = rf.Predict([]db.Feature{x, y, z})
 

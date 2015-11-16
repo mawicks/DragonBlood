@@ -11,9 +11,16 @@ type DTSplittingCriterion interface {
 	// Add() updates the internal state associated with adding x to a node.
 	Add(x float64)
 
+	// Combine() updates the internal state from an instance of the same type
+	Combine(DTSplittingCriterion)
+
 	// Subtract() updates the internal state associated with removing x to a node.
 	// Add() was previously called with x.
 	Subtract(float64)
+
+	// Separate() updates the internal state by remove the passed state.
+	// It is the inverse of Combine()
+	Separate(DTSplittingCriterion)
 
 	// Count() returns the number of items currently in the node
 	Count() int
@@ -61,16 +68,24 @@ type MSECriterion struct {
 	varianceAccumulator *stats.VarianceAccumulator
 }
 
-func NewMSECriterion() *MSECriterion {
-	return &MSECriterion{stats.NewVarianceAccumulator()}
+func NewMSECriterion() MSECriterion {
+	return MSECriterion{stats.NewVarianceAccumulator()}
 }
 
 func (mp MSECriterion) Add(x float64) {
 	mp.varianceAccumulator.Add(x)
 }
 
+func (mp MSECriterion) Combine(sc DTSplittingCriterion) {
+	mp.varianceAccumulator.Combine(sc.(MSECriterion).varianceAccumulator)
+}
+
 func (mp MSECriterion) Subtract(x float64) {
 	mp.varianceAccumulator.Subtract(x)
+}
+
+func (mp MSECriterion) Separate(sc DTSplittingCriterion) {
+	mp.varianceAccumulator.Separate(sc.(MSECriterion).varianceAccumulator)
 }
 
 func (mp MSECriterion) Count() int {
@@ -96,10 +111,10 @@ func (mp MSECriterion) Dump(string) {}
 // EntropyCriterionTarget is a decorator for a CategoricalFeature to allow it to be used as a target
 // where splits are evaluated against the entropy criterion (information gain)
 type EntropyCriterionTarget struct {
-	CategoricalFeature
+	*CategoricalFeature
 }
 
-func NewEntropyCriterionTarget(target CategoricalFeature) DTTarget {
+func NewEntropyCriterionTarget(target *CategoricalFeature) DTTarget {
 	return &EntropyCriterionTarget{target}
 }
 
@@ -110,10 +125,10 @@ func (target *EntropyCriterionTarget) NewSplittingCriterion() DTSplittingCriteri
 // GiniCriterionTarget is a decorator for a CategoricalFeature to allow it to be used as a target
 // where splits are evaluated against the Gini criterion.
 type GiniCriterionTarget struct {
-	CategoricalFeature
+	*CategoricalFeature
 }
 
-func NewGiniCriterionTarget(target CategoricalFeature) DTTarget {
+func NewGiniCriterionTarget(target *CategoricalFeature) DTTarget {
 	return &GiniCriterionTarget{target}
 }
 
@@ -143,6 +158,14 @@ func (ec *CategoricalCriterion) Add(x float64) {
 	ec.count += 1
 }
 
+func (ec *CategoricalCriterion) Combine(sc DTSplittingCriterion) {
+	cc := sc.(*CategoricalCriterion)
+	ec.count += cc.count
+	for i, c := range ec.counts {
+		cc.counts[i] += c
+	}
+}
+
 func (ec *CategoricalCriterion) Subtract(x float64) {
 	intx := int(x)
 	if ec.count <= 0 {
@@ -153,6 +176,14 @@ func (ec *CategoricalCriterion) Subtract(x float64) {
 	}
 	ec.count -= 1
 	ec.counts[intx] -= 1
+}
+
+func (ec *CategoricalCriterion) Separate(sc DTSplittingCriterion) {
+	cc := sc.(*CategoricalCriterion)
+	ec.count -= cc.count
+	for i, c := range ec.counts {
+		cc.counts[i] -= c
+	}
 }
 
 func (ec *CategoricalCriterion) Count() int {

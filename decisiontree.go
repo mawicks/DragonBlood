@@ -165,17 +165,18 @@ func (a *DTSplitEvaluator) BestSplit() *SplitInfo {
 
 	if a.bestLeftSize > 0 && a.bestLeftSize < a.count {
 		//		log.Printf("bestMetric: %v", a.bestMetric)
-		result = &SplitInfo{
-			splitter:  NumericSplitter(a.bestSplitValue),
-			reduction: a.initialMetric - a.bestMetric,
+		if result == nil {
+			result = &SplitInfo{}
 		}
+		result.splitter = NumericSplitter(a.bestSplitValue)
+		result.reduction = a.initialMetric - a.bestMetric
 	}
 	return result
 }
 
 // dtBestSplit finds the best improving split (if any) for this node over a random
 // selection of maxFeatures items from the features slice
-func dtBestSplit(node dtSplittableNode, features []DTFeature, target DTTarget, bag Bag, af DTSplittingCriterionFactory, minLeafSize, maxFeatures int) (fs *FeatureSplit) {
+func dtBestSplit(node dtSplittableNode, features []DTFeature, target DTTarget, bag Bag, minLeafSize, maxFeatures int) (fs *FeatureSplit) {
 	if maxFeatures > len(features) {
 		maxFeatures = len(features)
 	}
@@ -191,6 +192,7 @@ func dtBestSplit(node dtSplittableNode, features []DTFeature, target DTTarget, b
 		randomFeatures[i], randomFeatures[i+j] = randomFeatures[i+j], randomFeatures[i]
 	}
 	randomFeatures = randomFeatures[0:maxFeatures]
+	fmt.Printf("randomFeatures: %+v\n", randomFeatures)
 
 	// Find the random feature with the best optimal split
 	for i := range randomFeatures {
@@ -201,7 +203,7 @@ func dtBestSplit(node dtSplittableNode, features []DTFeature, target DTTarget, b
 				collapser.Add(nm, count)
 			}
 		}
-
+		fmt.Printf("collapser: %+v\n", collapser)
 		if bs := collapser.BestSplit(minLeafSize); bs != nil && (fs == nil || bs.reduction < fs.reduction) {
 			fs = &FeatureSplit{i, *bs}
 		}
@@ -219,7 +221,7 @@ type dtSplittableNode struct {
 	members []int
 }
 
-func dtInitialize(target Feature, bag Bag, af DTSplittingCriterionFactory) dtSplittableNode {
+func dtInitialize(target Feature, bag Bag) dtSplittableNode {
 	nodeMembership := make([]int, bag.Len())
 
 	for i := 0; i < bag.Len(); i++ {
@@ -245,19 +247,23 @@ func dtAddNodeMetrics(node dtSplittableNode, target DTTarget, bag Bag) {
 
 type SplitPair struct{ left, right int }
 
-func (dtg *decisionTreeGrower) grow(features []DTFeature, target DTTarget, bag Bag, oobPrediction []DTSplittingCriterion, af DTSplittingCriterionFactory) *DTNode {
+func (dtg *decisionTreeGrower) grow(features []DTFeature, target DTTarget, bag Bag, oobPrediction []DTSplittingCriterion) *DTNode {
 	maxFeatures := dtg.MaxFeatures
 	if maxFeatures > len(features) || maxFeatures <= 0 {
 		maxFeatures = len(features)
 	}
 
-	splittableRoot := dtInitialize(target, bag, af)
+	splittableRoot := dtInitialize(target, bag)
+	fmt.Printf("splittableRoot: %+v\n", splittableRoot)
 
 	var nextSplittableNodes []dtSplittableNode
 	for splittableNodes := []dtSplittableNode{splittableRoot}; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
+		fmt.Printf("splittableNodes: %+v\n", splittableNodes)
 		nextSplittableNodes = make([]dtSplittableNode, 0, len(splittableNodes))
 		for _, node := range splittableNodes {
-			bestSplit := dtBestSplit(node, features, target, bag, af, dtg.MinLeafSize, maxFeatures)
+			fmt.Printf("node: %+v\n", node)
+			bestSplit := dtBestSplit(node, features, target, bag, dtg.MinLeafSize, maxFeatures)
+			fmt.Printf("bestSplit: %v\n", bestSplit)
 			dtAddNodeMetrics(node, target, bag)
 
 			if bestSplit != nil { // Was an improving split found?
@@ -340,12 +346,12 @@ func (dtr *DecisionTree) Importances() []float64 {
 	return importances
 }
 
-func (dtr *DecisionTree) Fit(features []DTFeature, target DTTarget, af DTSplittingCriterionFactory) {
+func (dtr *DecisionTree) Fit(features []DTFeature, target DTTarget) {
 	bag := FullBag(features[0].Len())
 
 	// Pass nil to oob predictions because they are not applicable
 	// to a single decision tree
-	dtr.root = dtr.grower.grow(features, target, bag, nil, af)
+	dtr.root = dtr.grower.grow(features, target, bag, nil)
 
 	dtr.nFeatures = len(features)
 

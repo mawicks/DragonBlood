@@ -1,12 +1,16 @@
-package DragonBlood
+package DragonBlood_test
 
-import "testing"
+import (
+	"testing"
+
+	db "github.com/mawicks/DragonBlood"
+)
 
 // RocArea computes the area under the ROC curve
 // score is any score that orders the data (e.g. a probability estimate)
 // target contains the labels (True == positive; False == negative)
 func TestIsotonic(test *testing.T) {
-	x, y := Isotonic(
+	x, y := db.Isotonic(
 		[]float64{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0},
 		[]float64{1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0})
 
@@ -22,7 +26,7 @@ func TestIsotonic(test *testing.T) {
 		}
 	}
 
-	x, y = Isotonic(
+	x, y = db.Isotonic(
 		[]float64{12.0, 11.0, 10.0, 9.0, 8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0},
 		[]float64{0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0})
 

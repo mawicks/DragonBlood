@@ -35,6 +35,20 @@ func (a *VarianceAccumulator) Add(x float64) (sse, mean float64) {
 	return a.sumSquaredError, a.sum / float64(a.count)
 }
 
+// Combine combines two accumulators.  One use case is computing the
+// variance of a long sequence in parallel using several accumulators
+// which are then combined.
+func (a *VarianceAccumulator) Combine(x *VarianceAccumulator) {
+	if a.count > 0 && x.count > 0 {
+		e := (a.sum/float64(a.count) - x.sum/float64(x.count))
+		a.sumSquaredError += float64(a.count*x.count) / float64(a.count+x.count) * e * e
+	}
+
+	a.sum += x.sum
+	a.count += x.count
+	a.sumSquaredError += x.sumSquaredError
+}
+
 func (a *VarianceAccumulator) Mean() float64 {
 	return a.sum / float64(a.count)
 }
@@ -68,6 +82,17 @@ func (a *VarianceAccumulator) Subtract(x float64) (sse, mean float64) {
 	}
 
 	return a.sumSquaredError, a.sum / float64(a.count)
+}
+
+func (a *VarianceAccumulator) Separate(x *VarianceAccumulator) {
+	a.sum -= x.sum
+	a.count -= x.count
+	a.sumSquaredError -= x.sumSquaredError
+
+	if a.count > 0 && x.count > 0 {
+		e := (a.sum/float64(a.count) - x.sum/float64(x.count))
+		a.sumSquaredError -= float64(a.count*x.count) / float64(a.count+x.count) * e * e
+	}
 }
 
 func (a *VarianceAccumulator) Reset() {

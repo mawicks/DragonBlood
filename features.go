@@ -6,47 +6,33 @@ import (
 	"strconv"
 )
 
-// Because Go type assertions are inefficient, all
-// features types can present values as float64 via NumericValue().
-// For categorical values, this would be an integer (represented as a float64) corresponding to the value.
-// A float64 can represent all int32 values exactly.
-// The value returned by NumericValue() is invertable via Decode() so that
-// Decode(NumericValue(i)) == Value(i).
-// NumericValue(i) and Value(i) must retrieve values
-// in the order in which they were added, where the order is represented by i.
+// Because Go type assertions are inefficient, all feature types
+// present values as float64 via NumericValue().  This allows all
+// features (numerical or categorical) to be split or partitioned by a
+// comparison to a float64 split value
+
+// For categorical features, NumericValue() returns the integer encoding
+// of the original value embedded into a float64.  A float64 can
+// represent all int32 values exactly, so there is no loss of
+// information using this representation.
+
+// For categorical features, the value returned by NumericValue() may
+// be mapped back to the the original feature value using the
+// CategoricalFeature's Decode() method.  These methods ensure
+// that Decode(int(NumericValue(i))) == Value(i).
+
+// NumericValue(i) and Value(i) return values in the order in which
+// the feature values were added, where the order is represented by i.
 type Feature interface {
 	Len() int
 	Add(...interface{})
 	AddFromString(...string)
 
 	NumericValue(i int) float64
-	Decode(float64) interface{}
-
 	Value(i int) interface{}
 }
 
-// OrderedFeature is an interface for processing a list of feature
-// values in a particular order.  The implementation should ensure that the
-// following code will process the values in their intended order:
-//    feature.Prepare()
-//    for i:=0; i<len(feature); i++ {
-//       doSomething(feature.Value(InOrder(i)))
-//    }
-// The order is unspecified other than that identical
-// values of Value() appear consecutively in the sequence.
-// In other words:
-//    if feature.Value(InOrder(i)) == feature.Value(InOrder(j))
-//    then feature.Value(InOrder(k)) == feature.Value(InOrder(i)) for all i <= k <= j
-// Calling Prepare() should affect only the value of InOrder(i); it
-// should have no effect on the value of NumericValue(i) and Value(i)
-// for any i
-type OrderedFeature interface {
-	Feature
-	Prepare()
-	InOrder(int) int
-}
-
-// NumericFeature implements OrderedFeature (and Feature)
+// NumericFeature implements Feature
 type NumericFeature struct {
 	values []float64
 	order  []int
@@ -106,10 +92,9 @@ func (nf *NumericFeature) AddFromString(stringValues ...string) {
 }
 
 func (nf *NumericFeature) NumericValue(index int) float64 { return nf.values[index] }
-func (nf *NumericFeature) Decode(x float64) interface{}   { return x }
 func (nf *NumericFeature) Value(index int) interface{}    { return nf.values[index] }
 
-func (nf *NumericFeature) Prepare() {
+func (nf *NumericFeature) Sort() {
 	sort.Sort(nf)
 }
 
@@ -121,41 +106,35 @@ func (nf *NumericFeature) InOrder(index int) int {
 type CategoricalFeature struct {
 	codec  Codec
 	values []int
-	order  []int
 }
 
 func NewCategoricalFeature(anyValues ...interface{}) *CategoricalFeature {
 	st := NewCodec()
-	new := &CategoricalFeature{st, nil, nil}
+	new := &CategoricalFeature{st, nil}
 	new.Add(anyValues...)
 	return new
-}
-
-func (cf *CategoricalFeature) Swap(i, j int) { cf.order[i], cf.order[j] = cf.order[j], cf.order[i] }
-func (cf *CategoricalFeature) Len() int      { return len(cf.values) }
-func (cf *CategoricalFeature) Less(i, j int) bool {
-	return cf.values[cf.order[i]] < cf.values[cf.order[j]]
 }
 
 func (cf *CategoricalFeature) Categories() int {
 	return cf.codec.Len()
 }
 
+func (cf *CategoricalFeature) Range() int {
+	return cf.codec.Len()
+}
+
+func (cf *CategoricalFeature) Len() int { return len(cf.values) }
+
 func (cf *CategoricalFeature) Add(anyValues ...interface{}) {
 	for _, any := range anyValues {
-		// For now, only accept strings:
-		s := any.(string)
-
-		// Called for its side effects, so the return values are ignored
-		cf.AddFromString(s)
+		m, _ := cf.codec.Encode(any)
+		cf.values = append(cf.values, m)
 	}
 }
 
 func (cf *CategoricalFeature) AddFromString(strings ...string) {
 	for _, s := range strings {
-		m, _ := cf.codec.Encode(s)
-		cf.values = append(cf.values, m)
-		cf.order = append(cf.order, len(cf.order))
+		cf.Add(s)
 	}
 }
 
@@ -163,48 +142,63 @@ func (cf *CategoricalFeature) NumericValue(index int) float64 {
 	return float64(cf.values[index])
 }
 
-func (cf *CategoricalFeature) Decode(x float64) interface{} {
-	return cf.codec.Decode(int(x))
+func (cf *CategoricalFeature) Encode(any interface{}) int {
+	encoding, _ := cf.codec.Encode(any)
+	return encoding
+}
+
+func (cf *CategoricalFeature) Decode(i int) interface{} {
+	return cf.codec.Decode(i)
 }
 
 func (cf *CategoricalFeature) Value(index int) interface{} {
 	return cf.codec.Decode(cf.values[index])
 }
 
-func (cf *CategoricalFeature) Prepare() {
-	sort.Sort(cf)
+func (cf *CategoricalFeature) OrderEncoding() {
+	r := cf.codec.Len()
+
+	// Sort the original values
+	sorted := make([]interface{}, r)
+	for i := range sorted {
+		sorted[i] = cf.Decode(i)
+	}
+	sort.Sort(SortAny(sorted))
+
+	// Create new encoding by adding them in sorted order
+	newCodec := NewCodec()
+	for _, v := range sorted {
+		newCodec.Encode(v)
+	}
+
+	// Precompute mapping from old values to new values
+	reencoding := make([]int, r)
+	for i := range reencoding {
+		reencoding[i], _ = newCodec.Encode(cf.codec.Decode(i))
+	}
+
+	newValues := make([]int, len(cf.values))
+	for i, v := range cf.values {
+		newValues[i] = reencoding[v]
+	}
+
+	// Replace the original values and the original codec
+	cf.values = newValues
+	cf.codec = newCodec
 }
 
-func (cf *CategoricalFeature) InOrder(index int) int {
-	return cf.order[index]
+type SortAny []interface{}
+
+func (any SortAny) Less(i, j int) bool {
+	switch any[i].(type) {
+	case int:
+		return any[i].(int) < any[j].(int)
+	case float64:
+		return any[i].(float64) < any[j].(float64)
+	case string:
+		return any[i].(string) < any[j].(string)
+	}
+	return false
 }
-
-func (cf *CategoricalFeature) Range() int {
-	return cf.codec.Len()
-}
-
-// Deprecated
-type FeatureFactory interface {
-	New() Feature
-}
-
-// Deprecated
-type NumericFeatureFactory struct{}
-
-// func NewNumericFeatureFactory() FeatureFactory { return NumericFeatureFactory{} }
-
-// Deprecated
-func (NumericFeatureFactory) New(name string) Feature {
-	return NewNumericFeature()
-}
-
-// Deprecated
-type CategoricalFeatureFactory struct{}
-
-// Deprecated
-func NewCategoricalFeatureFactory() FeatureFactory { return CategoricalFeatureFactory{} }
-
-// Deprecated
-func (CategoricalFeatureFactory) New() Feature {
-	return NewCategoricalFeature(NewCodec())
-}
+func (any SortAny) Len() int      { return len(any) }
+func (any SortAny) Swap(i, j int) { any[i], any[j] = any[j], any[i] }
