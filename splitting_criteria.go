@@ -161,8 +161,8 @@ func (ec *CategoricalCriterion) Add(x float64) {
 func (ec *CategoricalCriterion) Combine(sc DTSplittingCriterion) {
 	cc := sc.(*CategoricalCriterion)
 	ec.count += cc.count
-	for i, c := range ec.counts {
-		cc.counts[i] += c
+	for i, c := range cc.counts {
+		ec.counts[i] += c
 	}
 }
 
@@ -181,8 +181,14 @@ func (ec *CategoricalCriterion) Subtract(x float64) {
 func (ec *CategoricalCriterion) Separate(sc DTSplittingCriterion) {
 	cc := sc.(*CategoricalCriterion)
 	ec.count -= cc.count
-	for i, c := range ec.counts {
-		cc.counts[i] -= c
+	if ec.count < 0 {
+		panic("Subtract() without corresponding Add()")
+	}
+	for i, c := range cc.counts {
+		ec.counts[i] -= c
+		if ec.counts[i] < 0 {
+			panic(fmt.Sprintf("Subtract() without corresponding Add() for item ec.counts[%d] = %v", i, ec.counts[i]))
+		}
 	}
 }
 

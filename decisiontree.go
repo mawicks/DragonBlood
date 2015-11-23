@@ -11,10 +11,10 @@ import (
 
 type DTFeature interface {
 	Feature
-	NewCollapser(target DTTarget) DTCollapser
+	NewSplitter(target DTTarget) DTSplitter
 }
 
-type DTCollapser interface {
+type DTSplitter interface {
 	Add(item int, count int)
 	BestSplit(minLeafSize int) *SplitInfo
 }
@@ -25,20 +25,20 @@ type DTTarget interface {
 }
 
 // Interfaces
-type Splitter interface {
+type Split interface {
 	Split(float64) bool
-	// Return interpretable representation of Splitter.
+	// Return interpretable representation of Split
 	String() string
 }
 
 // Types
 
-// NumericSplitter is an implementation of Splitter that performs a
+// NumericSplit is an implementation of Split that performs a
 // simple split of an ordered feature variable.
-type NumericSplitter float64
+type NumericSplit float64
 
-func (s NumericSplitter) Split(x float64) bool { return x < float64(s) }
-func (s NumericSplitter) String() string       { return fmt.Sprintf("< %g", float64(s)) }
+func (s NumericSplit) Split(x float64) bool { return x < float64(s) }
+func (s NumericSplit) String() string       { return fmt.Sprintf("< %g", float64(s)) }
 
 type Prediction struct {
 	size       int
@@ -46,7 +46,7 @@ type Prediction struct {
 }
 
 type SplitInfo struct {
-	splitter  Splitter
+	splitter  Split
 	reduction float64
 }
 
@@ -168,7 +168,7 @@ func (a *DTSplitEvaluator) BestSplit() *SplitInfo {
 		if result == nil {
 			result = &SplitInfo{}
 		}
-		result.splitter = NumericSplitter(a.bestSplitValue)
+		result.splitter = NumericSplit(a.bestSplitValue)
 		result.reduction = a.initialMetric - a.bestMetric
 	}
 	return result
@@ -177,6 +177,10 @@ func (a *DTSplitEvaluator) BestSplit() *SplitInfo {
 // dtBestSplit finds the best improving split (if any) for this node over a random
 // selection of maxFeatures items from the features slice
 func dtBestSplit(node dtSplittableNode, features []DTFeature, target DTTarget, bag Bag, minLeafSize, maxFeatures int) (fs *FeatureSplit) {
+	if len(node.members) <= minLeafSize {
+		return fs
+	}
+
 	if maxFeatures > len(features) {
 		maxFeatures = len(features)
 	}
@@ -196,17 +200,18 @@ func dtBestSplit(node dtSplittableNode, features []DTFeature, target DTTarget, b
 
 	// Find the random feature with the best optimal split
 	for i := range randomFeatures {
-		collapser := features[i].NewCollapser(target)
+		collapser := features[i].NewSplitter(target)
 
 		for _, nm := range node.members {
 			if count := bag.Count(nm); count > 0 {
 				collapser.Add(nm, count)
 			}
 		}
-		fmt.Printf("collapser: %+v\n", collapser)
+
 		if bs := collapser.BestSplit(minLeafSize); bs != nil && (fs == nil || bs.reduction < fs.reduction) {
 			fs = &FeatureSplit{i, *bs}
 		}
+
 	}
 	return fs
 }
@@ -258,12 +263,12 @@ func (dtg *decisionTreeGrower) grow(features []DTFeature, target DTTarget, bag B
 
 	var nextSplittableNodes []dtSplittableNode
 	for splittableNodes := []dtSplittableNode{splittableRoot}; len(splittableNodes) > 0; splittableNodes = nextSplittableNodes {
-		fmt.Printf("splittableNodes: %+v\n", splittableNodes)
+		fmt.Printf("splittableNodes: %+v\n\n", splittableNodes)
 		nextSplittableNodes = make([]dtSplittableNode, 0, len(splittableNodes))
 		for _, node := range splittableNodes {
 			fmt.Printf("node: %+v\n", node)
 			bestSplit := dtBestSplit(node, features, target, bag, dtg.MinLeafSize, maxFeatures)
-			fmt.Printf("bestSplit: %v\n", bestSplit)
+			fmt.Printf("bestSplit: %+v\n\n", bestSplit)
 			dtAddNodeMetrics(node, target, bag)
 
 			if bestSplit != nil { // Was an improving split found?
@@ -281,7 +286,6 @@ func (dtg *decisionTreeGrower) grow(features []DTFeature, target DTTarget, bag B
 				}
 				nextSplittableNodes = append(nextSplittableNodes, dtSplittableNode{node.Left, node.members[0:rightOffset]})
 				nextSplittableNodes = append(nextSplittableNodes, dtSplittableNode{node.Right, node.members[rightOffset:]})
-
 			} else { // node is a now a leaf node
 				for _, member := range node.members {
 					if oobPrediction != nil && bag.Count(member) == 0 {
