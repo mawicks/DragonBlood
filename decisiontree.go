@@ -11,7 +11,7 @@ import (
 
 type DTFeature interface {
 	Feature
-	NewSplitter(target DTTarget) DTSplitter
+	NewSplitter(target DTTarget, estNodeSize int) DTSplitter
 }
 
 type DTSplitter interface {
@@ -200,15 +200,15 @@ func dtBestSplit(node dtSplittableNode, features []DTFeature, target DTTarget, b
 
 	// Find the random feature with the best optimal split
 	for i := range randomFeatures {
-		collapser := features[i].NewSplitter(target)
+		splitter := features[i].NewSplitter(target, len(node.members))
 
 		for _, nm := range node.members {
 			if count := bag.Count(nm); count > 0 {
-				collapser.Add(nm, count)
+				splitter.Add(nm, count)
 			}
 		}
 
-		if bs := collapser.BestSplit(minLeafSize); bs != nil && (fs == nil || bs.reduction < fs.reduction) {
+		if bs := splitter.BestSplit(minLeafSize); bs != nil && (fs == nil || bs.reduction < fs.reduction) {
 			fs = &FeatureSplit{i, *bs}
 		}
 
